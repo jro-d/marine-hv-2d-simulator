@@ -1,0 +1,4099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marine High Voltage (6.6 kV) Switching &amp; Permit-to-Work Simulator</title>
+  <style>
+    /* ==========================================================================
+       Marine Power System Simulator Design System — ISA-101 Maritime HMI
+       ========================================================================== */
+    :root {
+      --font-sans: 'Anthropic Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+
+      /* Neutrals & Surfaces */
+      --bg: #e9ebed;
+      --panel: #f5f6f7;
+      --surface: #ffffff;
+      --surface-2: #f0f2f3;
+      --line: #dde0e3;
+      --line-strong: #c4c9ce;
+      --text: #15181b;
+      --text-2: #49515a;
+      --text-3: #727a83;
+      --text-inv: #e9ecee;
+      --text-inv-2: #a3abb3;
+
+      /* Chrome (top bar, header, modals) */
+      --chrome: #1c2024;
+      --chrome-2: #262b30;
+      --chrome-line: #353b41;
+
+      /* Brand & Accents */
+      --accent: #1d5d96;
+      --accent-hover: #174c7b;
+      --accent-tint: #e5edf5;
+      --focus: #1d5d96;
+
+      /* Process States */
+      --energized: #c22b2b;
+      --ok: #2b7a3d;
+      --ok-tint: #e6f1e8;
+      --ok-line: #a9cfb2;
+      --warn: #a8640a;
+      --warn-tint: #fbf0dc;
+      --warn-line: #e5c48b;
+      --alarm: #b42323;
+      --alarm-tint: #fbe8e8;
+      --alarm-line: #e7a9a9;
+      --dead: #8c949b;
+
+      /* Radii */
+      --r-sm: 4px;
+      --r: 6px;
+      --r-lg: 8px;
+
+      /* 2x Typography Scaling */
+      font: 400 15px/1.45 var(--font-sans);
+      color: var(--text);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      margin: 0;
+      min-width: 1024px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      user-select: none;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 1px;
+    }
+
+    .num {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .eyebrow {
+      font: 600 12px/1.2 var(--font-sans);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-3);
+    }
+
+    /* Modal Dialog styling */
+    dialog:modal {
+      overscroll-behavior: contain;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-lg);
+      padding: 0;
+      max-width: 920px;
+      width: 90vw;
+      max-height: 85vh;
+      margin: auto;
+      box-shadow: 0 20px 50px rgba(10, 14, 18, 0.35);
+    }
+
+    dialog[open] {
+      display: flex;
+      flex-direction: column;
+    }
+
+    dialog::backdrop {
+      overflow: hidden;
+      overscroll-behavior: contain;
+      background-color: rgba(10, 14, 18, 0.65);
+      backdrop-filter: blur(2px);
+    }
+
+    /* ==========================================================================
+       TOP BAR (Chrome, 48px height)
+       ========================================================================== */
+    .topbar {
+      height: 50px;
+      padding: 0 14px;
+      background: var(--chrome);
+      border-bottom: 1px solid #000;
+      color: var(--text-inv);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+      z-index: 25;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .brand-symbol {
+      width: 26px;
+      height: 26px;
+      background: #facc15;
+      color: #000;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font: 600 16px/1.2 var(--font-sans);
+      color: var(--text-inv);
+      white-space: nowrap;
+    }
+
+    .brand h1 span {
+      font-weight: 400;
+      color: var(--text-inv-2);
+      font-size: 14px;
+    }
+
+    .top-telemetry {
+      display: flex;
+      align-items: stretch;
+      flex: 1;
+      min-width: 0;
+      height: 36px;
+      border-left: 1px solid var(--chrome-line);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .telemetry-pill {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 14px;
+      border-right: 1px solid var(--chrome-line);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .telemetry-label {
+      font: 500 11.5px/1.1 var(--font-sans);
+      color: var(--text-inv-2);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .telemetry-pill strong {
+      font-size: 13.5px;
+      font-weight: 600;
+      line-height: 1.25;
+      color: var(--text-inv);
+      font-family: var(--font-mono);
+    }
+
+    .telemetry-pill strong.is-live { color: #f87171; }
+    .telemetry-pill strong.is-safe { color: #4ade80; }
+    .telemetry-pill strong.is-warn { color: #fbbf24; }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .top-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 32px;
+      padding: 5px 12px;
+      border-radius: var(--r);
+      border: 1px solid var(--chrome-line);
+      background: transparent;
+      color: var(--text-inv);
+      font: 500 13.5px/1.2 var(--font-sans);
+      white-space: nowrap;
+    }
+
+    .top-btn:hover:not(:disabled) {
+      background: var(--chrome-2);
+      border-color: #4a525a;
+    }
+
+    .top-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .score-badge {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--r);
+      background: rgba(34, 197, 94, 0.18);
+      border: 1px solid #22c55e;
+      color: #4ade80;
+      white-space: nowrap;
+    }
+
+    /* ==========================================================================
+       WORKSPACE LAYOUT (3 Columns: Left Sidebar, Center Canvas, Right Sidebar)
+       ========================================================================== */
+    .workspace {
+      --left-w: 360px;
+      --right-w: 400px;
+      display: grid;
+      grid-template-columns: var(--left-w) minmax(0, 1fr) var(--right-w);
+      height: calc(100vh - 50px - 28px);
+      min-height: 560px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--panel);
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .left-panel {
+      border-right: 1px solid var(--line-strong);
+      overflow-y: auto;
+      padding: 0 0 16px;
+    }
+
+    .right-panel {
+      border-left: 1px solid var(--line-strong);
+      overflow-y: auto;
+      padding: 0 0 16px;
+    }
+
+    .panel-heading {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 10px 14px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .panel-heading h2 {
+      margin: 0;
+      font: 600 15px/1.2 var(--font-sans);
+      color: var(--text);
+    }
+
+    .small-badge {
+      font: 500 12px/1 var(--font-mono);
+      color: var(--text-3);
+      padding: 2px 6px;
+      border-radius: var(--r-sm);
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+    }
+
+    .section-box {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .section-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .section-title-row h3 {
+      font: 600 13.5px/1.2 var(--font-sans);
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin: 0;
+    }
+
+    /* Scenario / Mission List */
+    .scenario-list {
+      display: flex;
+      flex-direction: column;
+      margin: 0;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .scenario-btn {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      width: 100%;
+      min-height: 38px;
+      padding: 8px 14px;
+      border: 0;
+      border-left: 3px solid transparent;
+      background: transparent;
+      color: var(--text-2);
+      text-align: left;
+      font: 400 14px/1.3 var(--font-sans);
+    }
+
+    .scenario-btn:hover {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .scenario-btn.active {
+      border-left-color: var(--accent);
+      background: var(--accent-tint);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .scenario-num {
+      font: 600 13px/1 var(--font-mono);
+      color: var(--text-3);
+      flex: none;
+    }
+
+    .scenario-btn.active .scenario-num {
+      color: var(--accent);
+    }
+
+    /* Compact Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 32px;
+      padding: 5px 12px;
+      border-radius: var(--r);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--text);
+      font: 500 13.5px/1.2 var(--font-sans);
+      white-space: nowrap;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--surface-2);
+      border-color: var(--text-3);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-danger {
+      background: var(--surface);
+      border-color: var(--alarm-line);
+      color: var(--alarm);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: var(--alarm);
+      border-color: var(--alarm);
+      color: #ffffff;
+    }
+
+    .btn-success {
+      background: var(--ok-tint);
+      border-color: var(--ok-line);
+      color: var(--ok);
+      font-weight: 600;
+    }
+
+    .btn-sm {
+      min-height: 26px;
+      padding: 3px 8px;
+      font-size: 12.5px;
+    }
+
+    /* PPE cards in Left Panel */
+    .ppe-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 10px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      font-size: 13.5px;
+    }
+
+    .ppe-row.equipped {
+      background: var(--ok-tint);
+      border-color: var(--ok-line);
+    }
+
+    .ppe-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .ppe-title {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .ppe-sub {
+      font-size: 12px;
+      color: var(--text-3);
+      font-family: var(--font-mono);
+    }
+
+    /* Tool Grid in Left Panel */
+    .tool-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .tool-item {
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      background: var(--surface);
+      color: var(--text-2);
+      font: 500 13px/1.2 var(--font-sans);
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tool-item:hover {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .tool-item.selected {
+      background: var(--accent-tint);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Keys & Box */
+    .key-tag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 3px 6px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .key-tag.in-hand {
+      background: var(--warn-tint);
+      border-color: var(--warn);
+      color: var(--warn);
+      font-weight: 600;
+    }
+
+    /* ==========================================================================
+       CENTER VIEWPORT
+       ========================================================================== */
+    .center-viewport {
+      display: flex;
+      flex-direction: column;
+      background: #f0f2f4;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .view-toolbar {
+      height: 42px;
+      padding: 0 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .segmented-tabs {
+      display: inline-flex;
+      padding: 2px;
+      gap: 2px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r);
+      background: var(--surface-2);
+    }
+
+    .segmented-tab {
+      border: 0;
+      border-radius: var(--r-sm);
+      padding: 4px 12px;
+      background: transparent;
+      color: var(--text-2);
+      font: 500 13px/1.3 var(--font-sans);
+    }
+
+    .segmented-tab:hover {
+      color: var(--text);
+    }
+
+    .segmented-tab.active {
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 600;
+      box-shadow: 0 0 0 1px var(--line-strong);
+    }
+
+    .cubicle-nav-pills {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .cub-pill {
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-sm);
+      padding: 3px 8px;
+      background: var(--surface);
+      color: var(--text-2);
+      font: 500 12.5px/1.2 var(--font-mono);
+    }
+
+    .cub-pill:hover {
+      color: var(--text);
+      border-color: var(--text-3);
+    }
+
+    .cub-pill.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* Main View Stage */
+    .view-stage {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    /* Switchgear Faceplate Container */
+    .switchgear-card {
+      width: 100%;
+      max-width: 820px;
+      background: var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-lg);
+      box-shadow: 0 1px 3px rgba(15, 20, 25, 0.05);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .switchgear-card-header {
+      padding: 10px 14px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .switchgear-card-header h3 {
+      font: 600 15px/1.2 var(--font-sans);
+      color: var(--text);
+      margin: 0;
+    }
+
+    .switchgear-card-body {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .sub-compartment {
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      background: #fafbfc;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sub-compartment-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .state-flag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: var(--r-sm);
+      border: 1px solid;
+    }
+
+    .state-flag.red { background: var(--alarm-tint); border-color: var(--alarm-line); color: var(--alarm); }
+    .state-flag.green { background: var(--ok-tint); border-color: var(--ok-line); color: var(--ok); }
+    .state-flag.amber { background: var(--warn-tint); border-color: var(--warn-line); color: var(--warn); }
+    .state-flag.earth { background: #fef08a; border-color: #eab308; color: #854d0e; }
+
+    .safety-tag-badge {
+      font: 700 11px/1.2 var(--font-mono);
+      padding: 2px 7px;
+      border-radius: var(--r-sm);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid;
+      letter-spacing: 0.3px;
+    }
+    .safety-tag-badge.danger { background: var(--alarm-tint); border-color: var(--alarm-line); color: var(--alarm); }
+    .safety-tag-badge.earth { background: #fef08a; border-color: #eab308; color: #854d0e; }
+    .safety-tag-badge.sft { background: var(--warn-tint); border-color: var(--warn-line); color: var(--warn); }
+
+    /* 2.5D Industrial Switchgear Visual Enhancements */
+    @keyframes cviPulse {
+      0%, 100% {
+        box-shadow: 0 0 6px rgba(239, 68, 68, 0.6), inset 0 0 2px #fff;
+        opacity: 0.9;
+      }
+      50% {
+        box-shadow: 0 0 16px rgba(239, 68, 68, 1), inset 0 0 5px #fff;
+        opacity: 1;
+      }
+    }
+    .cvi-dot.live {
+      background: #ef4444 !important;
+      animation: cviPulse 1.2s infinite ease-in-out;
+    }
+    .cvi-strip {
+      background: #111827;
+      border: 1px solid #374151;
+      border-radius: var(--r-sm);
+      padding: 6px 12px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+    .cvi-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #374151;
+      border: 1px solid #1f2937;
+      display: inline-block;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .metal-fascia {
+      background: linear-gradient(180deg, #242c35 0%, #1a2027 100%);
+      border: 1px solid #353f4a;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.25);
+      border-radius: var(--r);
+    }
+    .hazard-stripe {
+      background: repeating-linear-gradient(
+        -45deg,
+        #b91c1c,
+        #b91c1c 8px,
+        #facc15 8px,
+        #facc15 16px
+      );
+    }
+
+    /* Racking Crank Slider */
+    .racking-box {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .racking-track {
+      width: 100%;
+      height: 10px;
+      background: var(--surface-2);
+      border-radius: 5px;
+      border: 1px solid var(--line);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .racking-fill {
+      height: 100%;
+      transition: width 0.15s ease, background-color 0.15s ease;
+    }
+
+    /* CVI LEDs */
+    .cvi-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 6px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+
+    .cvi-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--line-strong);
+      display: inline-block;
+      margin-right: 4px;
+    }
+
+    .cvi-dot.live {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444;
+    }
+
+    /* Open Compartment View */
+    .shutter-banner {
+      padding: 8px 12px;
+      border-radius: var(--r);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+
+    .shutter-banner.red {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #991b1b;
+    }
+
+    .shutter-banner.yellow {
+      background: #fffbeb;
+      border-color: #fde68a;
+      color: #92400e;
+    }
+
+    .terminals-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .terminal-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+
+    .terminal-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .terminal-card.earthed {
+      background: var(--ok-tint);
+      border-color: var(--ok-line);
+    }
+
+    .terminal-card.live-warning {
+      border-color: var(--alarm);
+      background: var(--alarm-tint);
+    }
+
+    .terminal-lug {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #f59e0b;
+      color: #000;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #d97706;
+    }
+
+    .terminal-lug.pe {
+      background: #22c55e;
+      border-color: #16a34a;
+      color: #fff;
+    }
+
+    /* Bottom Busbar Mimic Strip (Exactly like Marine Power System Sim) */
+    .busbar-dock {
+      background: var(--surface);
+      border-top: 1px solid var(--line-strong);
+      padding: 8px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .busbar-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .bus-card {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--line-strong);
+      border-radius: var(--r-sm);
+      padding: 4px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 12px;
+    }
+
+    .bus-card.live {
+      border-top-color: var(--energized);
+      background: #fdf5f5;
+    }
+
+    .bus-card.earthed {
+      border-top-color: var(--ok);
+      background: var(--ok-tint);
+    }
+
+    .bus-name {
+      font-weight: 600;
+      color: var(--text);
+      font-size: 12.5px;
+    }
+
+    .bus-telemetry {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-2);
+    }
+
+    .busbar-legend-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-3);
+    }
+
+    .legend-dots {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* Bottom Status Strip (26px height) */
+    .bottom-status-strip {
+      height: 28px;
+      padding: 0 14px;
+      background: var(--chrome);
+      border-top: 1px solid #000;
+      color: var(--text-inv-2);
+      font: 500 12.5px/1 var(--font-sans);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       RIGHT SIDEBAR: LOCKOUT / TAGOUT (LOTO & PTW) PROCEDURE PANEL
+       ========================================================================== */
+    .inspector-header {
+      padding: 12px 14px 10px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .inspector-header h2 {
+      margin: 0;
+      font: 600 16px/1.2 var(--font-sans);
+      color: var(--text);
+    }
+
+    .equipment-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .meta-box {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .meta-box span {
+      font-size: 11.5px;
+      color: var(--text-3);
+      text-transform: uppercase;
+    }
+
+    .meta-box strong {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      color: var(--text);
+    }
+
+    /* LOTO Step List (Exactly matching Marine Power System Simulator) */
+    .loto-container {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .loto-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .loto-header-row h3 {
+      font: 600 14px/1.2 var(--font-sans);
+      margin: 0;
+    }
+
+    .loto-status-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+      background: var(--surface);
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+    }
+
+    .loto-status-strip div {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .loto-status-strip span {
+      font: 500 11.5px/1.2 var(--font-sans);
+      color: var(--text-3);
+    }
+
+    .loto-status-strip strong {
+      font-size: 13px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .loto-step-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      background: var(--surface);
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .loto-step-card.active-step {
+      border-left-color: var(--accent);
+      background: var(--accent-tint);
+    }
+
+    .loto-step-card.completed-step {
+      border-left-color: var(--ok);
+      background: #f7faf7;
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-number-circle {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-2);
+      flex-shrink: 0;
+    }
+
+    .completed-step .step-number-circle {
+      background: var(--ok);
+      border-color: var(--ok);
+      color: #fff;
+    }
+
+    .active-step .step-number-circle {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .step-title-text {
+      font: 600 14px/1.25 var(--font-sans);
+      color: var(--text);
+    }
+
+    .step-desc {
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.35;
+      padding-left: 30px;
+    }
+
+    .step-action-bar {
+      padding-left: 30px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .info-footer-card {
+      margin: 10px 14px;
+      padding: 10px 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    /* ==========================================================================
+       FLOATING INTERACTIVE TUTORIAL WINDOW (Draggable & Non-Modal)
+       ========================================================================== */
+    .help-float {
+      position: fixed;
+      top: 58px;
+      right: 20px;
+      width: 540px;
+      max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 84px);
+      background: var(--surface);
+      border: 1px solid var(--chrome-line);
+      border-radius: var(--r-lg);
+      box-shadow: 0 16px 45px rgba(10, 14, 18, 0.35), 0 2px 6px rgba(0, 0, 0, 0.12);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: width 0.18s ease;
+      overflow: hidden;
+    }
+
+    .help-float.wide {
+      width: 780px;
+    }
+
+    .help-float.minimized {
+      max-height: 42px;
+    }
+
+    .help-float.minimized .help-float-tabs,
+    .help-float.minimized .help-float-body {
+      display: none !important;
+    }
+
+    .help-float.hidden {
+      display: none !important;
+    }
+
+    .help-float-head {
+      padding: 9px 14px;
+      background: var(--chrome);
+      color: var(--text-inv);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .help-float-head:active {
+      cursor: grabbing;
+    }
+
+    .help-float-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .help-float-title h2 {
+      margin: 0;
+      font: 600 14px/1.2 var(--font-sans);
+      color: var(--text-inv);
+    }
+
+    .help-float-ctrls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .help-ctrl-btn {
+      background: transparent;
+      border: 0;
+      color: var(--text-inv-2);
+      width: 26px;
+      height: 26px;
+      border-radius: var(--r-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .help-ctrl-btn:hover {
+      background: var(--chrome-2);
+      color: var(--text-inv);
+    }
+
+    .help-float-tabs {
+      display: flex;
+      gap: 2px;
+      padding: 6px 10px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--line);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .help-tab-btn {
+      padding: 5px 12px;
+      font: 500 13px/1.2 var(--font-sans);
+      border: 0;
+      background: transparent;
+      color: var(--text-2);
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .help-tab-btn:hover {
+      color: var(--text);
+    }
+
+    .help-tab-btn.active {
+      background: var(--surface);
+      color: var(--accent);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+
+    .help-float-body {
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .guide-banner {
+      background: var(--accent-tint);
+      border-left: 3px solid var(--accent);
+      padding: 10px 12px;
+      border-radius: var(--r-sm);
+      font-size: 13.5px;
+      color: var(--text);
+    }
+
+    .guide-step-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .guide-step-card.active {
+      border-left-color: var(--accent);
+      background: #fafbfc;
+      box-shadow: 0 2px 8px rgba(29, 93, 150, 0.08);
+    }
+
+    .guide-step-card.done {
+      border-left-color: var(--ok);
+      background: var(--ok-tint);
+    }
+
+    .guide-step-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .guide-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: var(--r-sm);
+      font-family: var(--font-mono);
+    }
+
+    .guide-badge.current {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .guide-badge.completed {
+      background: var(--ok);
+      color: #fff;
+    }
+
+    .guide-badge.pending {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      color: var(--text-3);
+    }
+
+    .guide-step-explain {
+      font-size: 13.5px;
+      color: var(--text-2);
+      line-height: 1.45;
+    }
+
+    .guide-look-box {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      padding: 6px 10px;
+      font-size: 12.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .faq-q {
+      font-weight: 600;
+      color: var(--text);
+      font-size: 14px;
+      margin-top: 10px;
+      margin-bottom: 3px;
+    }
+
+    .faq-a {
+      color: var(--text-2);
+      font-size: 13.5px;
+      line-height: 1.45;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR (Chrome, 50px) -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-symbol">⚡</div>
+      <h1>Marine High Voltage Simulator <span>6.6 kV Switching &amp; PTW</span></h1>
+    </div>
+
+    <!-- Live Telemetry Strip -->
+    <div class="top-telemetry">
+      <div class="telemetry-pill">
+        <span class="telemetry-label">Generators</span>
+        <strong id="topTelGen">1 / 4 ONLINE</strong>
+      </div>
+      <div class="telemetry-pill">
+        <span class="telemetry-label">6.6 kV Bus</span>
+        <strong id="topTelBus" class="is-live">60.00 Hz — 6.60 kV</strong>
+      </div>
+      <div class="telemetry-pill">
+        <span class="telemetry-label">Total Load</span>
+        <strong id="topTelLoad">1,800 kW — PF 0.92</strong>
+      </div>
+      <div class="telemetry-pill">
+        <span class="telemetry-label">Bus-Tie (BT1)</span>
+        <strong id="topTelTie">CLOSED [I]</strong>
+      </div>
+      <div class="telemetry-pill">
+        <span class="telemetry-label">5 Golden Rules</span>
+        <strong id="topTelRules" class="is-warn">STCW VERIFYING</strong>
+      </div>
+    </div>
+
+    <!-- Top Action Controls -->
+    <div class="top-actions">
+      <div class="score-badge" id="topScoreBadge">SCORE: 100 / 100</div>
+      <button type="button" class="top-btn" id="btnToggleHelp" style="background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600;">💡 Step-by-Step Tutorial</button>
+      <button type="button" class="top-btn" id="btnToggleMode">Mode: <strong>TRAINING</strong></button>
+      <button type="button" class="top-btn" id="btnOpenManual">Manual &amp; Interlocks</button>
+      <button type="button" class="top-btn" id="btnToggleAudio">🔊 Sound: ON</button>
+      <button type="button" class="top-btn" id="btnResetAll" style="border-color:#b42323;color:#fca5a5;">Reset</button>
+    </div>
+  </header>
+
+  <!-- WORKSPACE (3 Columns) -->
+  <main class="workspace">
+
+    <!-- LEFT PANEL: SCENARIOS & OPERATING TOOLBELT -->
+    <aside class="panel left-panel">
+      <div class="panel-heading">
+        <h2>Missions &amp; Scenarios</h2>
+        <span class="small-badge" id="missionCountBadge">01 / 04</span>
+      </div>
+
+      <!-- Scenarios List -->
+      <nav class="scenario-list">
+        <button type="button" class="scenario-btn active" data-m="1">
+          <span class="scenario-num">01</span>
+          <span>Bow Thruster 6.6 kV Motor Isolation &amp; PTW</span>
+        </button>
+        <button type="button" class="scenario-btn" data-m="2">
+          <span class="scenario-num">02</span>
+          <span>Transformer Dual-End Isolation (Back-Feed Trap)</span>
+        </button>
+        <button type="button" class="scenario-btn" data-m="3">
+          <span class="scenario-num">03</span>
+          <span>Sanction-for-Test &amp; 5 kV Megger / PI Test</span>
+        </button>
+        <button type="button" class="scenario-btn" data-m="4">
+          <span class="scenario-num">04</span>
+          <span>De-Isolation &amp; Safe Restoration to 6.6 kV Service</span>
+        </button>
+      </nav>
+
+      <!-- HV PPE Locker Section -->
+      <div class="section-box">
+        <div class="section-title-row">
+          <h3>High Voltage PPE (COSWP Ch. 22)</h3>
+          <button type="button" class="btn btn-sm btn-primary" id="btnEquipAllPPE">Don All PPE</button>
+        </div>
+
+        <div class="ppe-row" id="ppeGlovesRow">
+          <div class="ppe-text">
+            <span class="ppe-title">Class 2 HV Gloves (17 kV)</span>
+            <span class="ppe-sub" id="ppeGlovesSub">Roll Air-Test Required</span>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <button type="button" class="btn btn-sm" id="btnRollTest">Air-Test</button>
+            <button type="button" class="btn btn-sm" id="btnDonGloves">Don</button>
+          </div>
+        </div>
+
+        <div class="ppe-row" id="ppeSuitRow">
+          <div class="ppe-text">
+            <span class="ppe-title">Arc-Flash Suit (40 cal/cm²)</span>
+            <span class="ppe-sub" id="ppeSuitSub">Not Donned</span>
+          </div>
+          <button type="button" class="btn btn-sm" id="btnDonSuit">Equip</button>
+        </div>
+
+        <div class="ppe-row" id="ppeBootsRow">
+          <div class="ppe-text">
+            <span class="ppe-title">Dielectric Boots &amp; 15 kV Mat</span>
+            <span class="ppe-sub" id="ppeBootsSub">Not Deployed</span>
+          </div>
+          <button type="button" class="btn btn-sm" id="btnDonBoots">Deploy</button>
+        </div>
+      </div>
+
+      <!-- Active Tool / Cursor Mode Section -->
+      <div class="section-box">
+        <div class="section-title-row">
+          <h3>Toolbelt &amp; Operating Mode</h3>
+          <span class="eyebrow" id="currentToolLabel">HAND</span>
+        </div>
+        <div class="tool-grid" id="toolbeltGrid">
+          <button type="button" class="tool-item selected" data-t="HAND">✋ Hand / Operate</button>
+          <button type="button" class="tool-item" data-t="CRANK">🔧 Racking Crank</button>
+          <button type="button" class="tool-item" data-t="EARTH_LEVER">⚡ Earth Lever</button>
+          <button type="button" class="tool-item" data-t="PADLOCK">🔒 LOTO Padlock</button>
+          <button type="button" class="tool-item" data-t="TAG_DANGER">🏷️ Danger Tag</button>
+          <button type="button" class="tool-item" data-t="TAG_EARTH">🏷️ Earth Tag</button>
+          <button type="button" class="tool-item" data-t="HV_TESTER">📏 6.6kV Wand</button>
+          <button type="button" class="tool-item" data-t="PORTABLE_EARTH">⛓️ Portable Earth</button>
+          <button type="button" class="tool-item" data-t="MEGGER">📟 5 kV Megger</button>
+          <button type="button" class="tool-item" data-t="TAG_SFT">🚧 SFT Tag</button>
+        </div>
+      </div>
+
+      <!-- Castell Key Ring & Key Box Section -->
+      <div class="section-box">
+        <div class="section-title-row">
+          <h3>Castell Keys &amp; Key Box</h3>
+          <span class="small-badge" id="keyBoxStatusBadge">KEY BOX: OPEN</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;" id="keyChipsContainer">
+          <!-- Dynamically populated -->
+        </div>
+        <button type="button" class="btn btn-sm" id="btnToggleKeyBox" style="margin-top:4px;">
+          🔐 Lock Keys in Safety Key Box
+        </button>
+      </div>
+
+      <!-- 5 kV Megger Console (Mission 3) -->
+      <div class="section-box" id="meggerSectionBox">
+        <div class="section-title-row">
+          <h3>5,000 V DC Insulation / PI Tester</h3>
+          <span class="small-badge" id="meggerLeadBadge">DISCONNECTED</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-family:var(--font-mono);font-size:13px;background:var(--surface);padding:6px;border:1px solid var(--line);border-radius:var(--r);">
+          <div>1-Min: <strong id="valMegger1Min">---</strong></div>
+          <div>10-Min: <strong id="valMegger10Min">---</strong></div>
+          <div>PI Ratio: <strong id="valMeggerPI">---</strong></div>
+          <div>Charge: <strong id="valMeggerVolts" style="color:var(--alarm);">0 V</strong></div>
+        </div>
+        <div style="display:flex;gap:4px;margin-top:4px;">
+          <button type="button" class="btn btn-sm" id="btnConnectMeggerLeads">Connect Leads</button>
+          <button type="button" class="btn btn-sm btn-primary" id="btnExecuteMeggerTest">Run 5kV Test</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-success" id="btnBleedMeggerCharge" style="margin-top:4px;">
+          ⚡ Discharge Stored Winding Charge to 0 V
+        </button>
+      </div>
+    </aside>
+
+    <!-- CENTER VIEWPORT: SWITCHGEAR & BOTTOM BUSBAR STRIP -->
+    <section class="center-viewport">
+      <!-- View Mode Toolbar -->
+      <div class="view-toolbar">
+        <div class="segmented-tabs">
+          <button type="button" class="segmented-tab active" id="tabViewFaceplate">2.5D Cubicle Faceplate</button>
+          <button type="button" class="segmented-tab" id="tabViewInterior">Internal Compartment</button>
+          <button type="button" class="segmented-tab" id="tabViewSLD">Single-Line Diagram</button>
+        </div>
+
+        <div class="cubicle-nav-pills" id="cubicleNavPills">
+          <button type="button" class="cub-pill" data-c="DG1">C1: DG1</button>
+          <button type="button" class="cub-pill" data-c="BT1">C2: BT1</button>
+          <button type="button" class="cub-pill active" data-c="BT-M1">C3: BT-M1</button>
+          <button type="button" class="cub-pill" data-c="TR1-HV">C4: TR1-HV</button>
+          <button type="button" class="cub-pill" data-c="ACB-TR1-LV">C5: ACB-TR1-LV</button>
+        </div>
+      </div>
+
+      <!-- Main Stage Canvas -->
+      <div class="view-stage" id="viewStageArea">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Bottom Busbar Mimic Strip (Matching Marine Power System Sim) -->
+      <footer class="busbar-dock">
+        <div class="busbar-strip">
+          <div class="bus-card live" id="busCardA">
+            <span class="bus-name">6.6 kV Bus A — Port</span>
+            <span class="bus-telemetry">6.65 kV — 60.0 Hz</span>
+          </div>
+          <div class="bus-card live" id="busCardB">
+            <span class="bus-name">6.6 kV Bus B — Stbd</span>
+            <span class="bus-telemetry">6.65 kV — 60.0 Hz</span>
+          </div>
+          <div class="bus-card" id="busCardFeeder">
+            <span class="bus-name">Bow Thruster (BT-M1)</span>
+            <span class="bus-telemetry" id="busFeederText">6.60 kV (LIVE)</span>
+          </div>
+          <div class="bus-card" id="busCardTr1">
+            <span class="bus-name">Transformer (TR1)</span>
+            <span class="bus-telemetry" id="busTr1Text">440 V / 6.6 kV</span>
+          </div>
+          <div class="bus-card live" id="busCard440">
+            <span class="bus-name">440 V LV Main Bus</span>
+            <span class="bus-telemetry">441 V — 60.0 Hz</span>
+          </div>
+        </div>
+
+        <div class="busbar-legend-row">
+          <div class="legend-dots">
+            <div class="legend-item"><span class="legend-indicator" style="background:var(--energized);"></span> Energized</div>
+            <div class="legend-item"><span class="legend-indicator" style="background:var(--dead);"></span> De-energized</div>
+            <div class="legend-item"><span class="legend-indicator" style="background:var(--ok);"></span> Earthed (Safe)</div>
+            <div class="legend-item"><span class="legend-indicator" style="background:var(--warn);"></span> Test / Charge</div>
+          </div>
+          <div id="quickStepTipText" style="color:var(--text-2);font-weight:500;">
+            Follow step-by-step Lockout/Tagout actions in the right panel.
+          </div>
+        </div>
+      </footer>
+
+      <!-- Bottom Status Strip (28px height) -->
+      <div class="bottom-status-strip">
+        <div id="bottomStatusScenario">
+          <strong>Mission 01:</strong> Bow Thruster 6.6 kV Motor Isolation &amp; PTW Issuance
+        </div>
+        <div id="bottomStatusEvent">
+          Last event: Simulator initialized. STCW 2010 Manila Amendments A-III/6 ready.
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT SIDEBAR: LOCKOUT / TAGOUT & INSPECTOR PANEL -->
+    <aside class="panel right-panel">
+      <div class="inspector-header">
+        <span class="eyebrow" id="inspEyebrow">6.6 kV Main Switchboard — Cubicle 3</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <h2 id="inspTitle">Bow Thruster Feeder (BT-M1)</h2>
+          <span class="state-flag red" id="inspStatusBadge">POWERED</span>
+        </div>
+      </div>
+
+      <!-- Equipment Telemetry Grid -->
+      <div class="equipment-meta-grid">
+        <div class="meta-box">
+          <span>Feeder Voltage</span>
+          <strong id="metaVoltage">6.60 kV — 60.0 Hz</strong>
+        </div>
+        <div class="meta-box">
+          <span>Current / Load</span>
+          <strong id="metaCurrent">198 A (1,800 kW)</strong>
+        </div>
+        <div class="meta-box">
+          <span>VCB Truck</span>
+          <strong id="metaTruck">SERVICE (20/20)</strong>
+        </div>
+        <div class="meta-box">
+          <span>Earth Switch</span>
+          <strong id="metaEarth">OPEN (UNEARTHED)</strong>
+        </div>
+      </div>
+
+      <!-- Lockout / Tagout (LOTO / PTW) Procedure Card -->
+      <div class="loto-container">
+        <div class="loto-header-row">
+          <div>
+            <h3>Lockout / Tagout</h3>
+            <span class="eyebrow" id="lotoPtwCode">PTW-HV-6600-001A — Step 0 of 6</span>
+          </div>
+          <button type="button" class="btn btn-sm" id="btnFullPtwView">Permit View</button>
+        </div>
+
+        <!-- LOTO Mini Status Strip -->
+        <div class="loto-status-strip">
+          <div>
+            <span>Feeder VCB</span>
+            <strong id="lotoStripVcb" style="color:var(--energized);">CLOSED — LIVE</strong>
+          </div>
+          <div>
+            <span>VCB Truck</span>
+            <strong id="lotoStripTruck">SERVICE</strong>
+          </div>
+          <div>
+            <span>Voltage Test</span>
+            <strong id="lotoStripPtp" style="color:var(--warn);">NOT PROVEN</strong>
+          </div>
+          <div>
+            <span>Circuit Earth</span>
+            <strong id="lotoStripEarth">OPEN</strong>
+          </div>
+        </div>
+
+        <!-- Interactive LOTO Steps List -->
+        <div id="lotoStepsList" style="display:flex;flex-direction:column;gap:8px;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <button type="button" class="btn btn-sm" id="btnResetPermit" style="align-self:flex-start;">
+          Reset Permit Procedure
+        </button>
+      </div>
+
+      <!-- Additional Apparatus Details -->
+      <div class="info-footer-card">
+        <span class="eyebrow">Purpose</span>
+        <p id="infoPurposeText" style="margin:0;color:var(--text-2);">
+          Supplies 6.6 kV, 60 Hz 3-phase power to Bow Thruster variable frequency drive (1,800 kW).
+        </p>
+      </div>
+      <div class="info-footer-card">
+        <span class="eyebrow">Regulations</span>
+        <p style="margin:0;color:var(--text-2);font-family:var(--font-mono);font-size:12px;">
+          STCW Table A-III/6 • IEC 60092-503 • UK MCA COSWP Ch. 22
+        </p>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- FLOATING DRAGGABLE INTERACTIVE TUTORIAL WINDOW -->
+  <div class="help-float" id="helpFloat" aria-labelledby="helpTitle">
+    <div class="help-float-head" id="helpDragHandle">
+      <div class="help-float-title">
+        <span style="font-size:16px;">💡</span>
+        <h2 id="helpTitle">Marine High Voltage – Step-by-Step Tutorial Guide</h2>
+      </div>
+      <div class="help-float-ctrls">
+        <button class="help-ctrl-btn" id="helpMinimize" title="Minimize to Title Bar" type="button">_</button>
+        <button class="help-ctrl-btn" id="helpExpand" title="Expand / Normal Width" type="button">⤢</button>
+        <button class="help-ctrl-btn" id="helpCloseBtn" title="Close Tutorial" type="button">✕</button>
+      </div>
+    </div>
+    <div class="help-float-tabs">
+      <button class="help-tab-btn active" data-htab="walkthrough" type="button">Interactive Walkthrough</button>
+      <button class="help-tab-btn" data-htab="golden-rules" type="button">The 5 Golden Rules</button>
+      <button class="help-tab-btn" data-htab="missions" type="button">All 4 Missions Explained</button>
+      <button class="help-tab-btn" data-htab="interlocks" type="button">Interlocks &amp; Traps FAQ</button>
+    </div>
+    <div class="help-float-body" id="helpBody">
+      <!-- Tab 1: Interactive Live Walkthrough -->
+      <div class="htab-pane" id="hpane-walkthrough">
+        <div class="guide-banner" id="tutorialMissionIntroBanner">
+          <strong>Mission 1: Bow Thruster 6.6 kV Motor Isolation &amp; PTW</strong><br>
+          Follow each step below. You can click <strong>"Do This Step"</strong> to execute it immediately or click the highlighted controls on screen.
+        </div>
+        <div id="tutorialStepsContainer" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+          <!-- Dynamically populated by renderTutorialWalkthrough() -->
+        </div>
+      </div>
+
+      <!-- Tab 2: The 5 Golden Rules of Marine HV Safety -->
+      <div class="htab-pane" id="hpane-golden-rules" style="display:none;">
+        <div class="guide-banner">
+          <strong>UK MCA COSWP Chapter 22 &amp; STCW 2010 Manila Amendments Table A-III/6:</strong><br>
+          Under international maritime law, any work on marine high voltage (&gt; 1,000 V) equipment must strictly adhere to the <strong>5 Golden Rules</strong> in chronological order.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+          <div class="guide-step-card">
+            <strong style="color:var(--accent);">1. Disconnect Completely (All-Pole Isolation)</strong>
+            <p class="guide-step-explain">
+              Isolate the apparatus from <strong>all</strong> sources of electrical supply. This includes racking out the primary Vacuum Circuit Breaker (VCB) to the <code>DISCONNECTED</code> position and isolating all low-voltage auxiliary and transformer secondary circuits that could back-feed into the apparatus.
+            </p>
+          </div>
+          <div class="guide-step-card">
+            <strong style="color:var(--accent);">2. Secure Against Re-Connection (LOTO &amp; Interlocks)</strong>
+            <p class="guide-step-explain">
+              Apply personal safety padlocks to the VCB racking shutter port, lock and extract Castell trapped keys (transferring them to earth switches), lock all keys inside the designated <strong>Safety Key Box</strong>, and post <em>"DANGER — DO NOT OPERATE (MEN WORKING)"</em> warning notices.
+            </p>
+          </div>
+          <div class="guide-step-card">
+            <strong style="color:var(--accent);">3. Verify That the Installation is Dead (Prove – Test – Prove)</strong>
+            <p class="guide-step-explain">
+              Never assume a circuit is dead because a breaker was opened! You must test all three phases (<code>L1</code>, <code>L2</code>, <code>L3</code>) using an approved 6.6 kV live-line voltage detector wand. The wand MUST be proven on a dedicated electronic proving unit <strong>immediately before</strong> and <strong>immediately after</strong> testing the terminals.
+            </p>
+          </div>
+          <div class="guide-step-card">
+            <strong style="color:var(--accent);">4. Carry Out Earthing and Short-Circuiting</strong>
+            <p class="guide-step-explain">
+              Close the Integral Fault-Making Earth Switch and/or apply Portable Circuit Main Earth (CME) leads. Earthing bleeds any residual capacitive stored charge and ensures that if a circuit is accidentally energized, upstream protection instantly trips before lethal voltages can develop.
+            </p>
+          </div>
+          <div class="guide-step-card">
+            <strong style="color:var(--accent);">5. Provide Protection Against Adjacent Live Parts &amp; Issue Permit (PTW)</strong>
+            <p class="guide-step-explain">
+              Padlock automatic metallic safety shutters covering adjacent live busbars, erect safety barriers, and formally issue a signed <strong>High Voltage Permit-to-Work (PTW)</strong> or <strong>Sanction-for-Test (SFT)</strong> before permitting any physical work to begin.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Detailed Mission Guides -->
+      <div class="htab-pane" id="hpane-missions" style="display:none;">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="guide-step-card">
+            <strong>Mission 01: Bow Thruster 6.6 kV Motor Isolation &amp; PTW</strong>
+            <p class="guide-step-explain">
+              <strong>Objective:</strong> Isolate the 1,800 kW Bow Thruster motor feeder (<code>BT-M1</code>) to replace the drive-end bearing.<br>
+              <strong>Key Steps:</strong> Stop drive -> Equip PPE &amp; roll test gloves -> Trip VCB [O] -> Rack to DISCONNECTED (0/20) -> Extract K1-BT -> Padlock racking port &amp; post Danger Tag -> Insert K1-BT into Earth Switch -> Close &amp; padlock Earth Switch -> Lock Safety Key Box -> Open door -> Padlock Red Busbar Shutter -> Prove–Test–Prove -> Issue PTW.
+            </p>
+          </div>
+          <div class="guide-step-card">
+            <strong>Mission 02: Transformer Dual-End Isolation (The Back-Feed Trap)</strong>
+            <p class="guide-step-explain">
+              <strong>Objective:</strong> Isolate HV/LV Transformer <code>TR1</code> (6.6 kV / 440 V) while the 440 V switchboard remains energized from an auxiliary generator.<br>
+              <strong>The Trap:</strong> If you only trip the 6.6 kV primary, 440 V back-feeds into the secondary winding, stepping up to <strong>lethal 6,600 V</strong> on the HV terminals! You must isolate &amp; lock out <code>ACB-TR1-LV</code> first and exchange dual Castell keys (<code>K-HV</code> + <code>K-LV</code>).
+            </p>
+          </div>
+          <div class="guide-step-card">
+            <strong>Mission 03: Sanction-for-Test &amp; 5 kV Megger / PI Test</strong>
+            <p class="guide-step-explain">
+              <strong>Objective:</strong> Perform a 5,000 V DC Insulation Resistance &amp; Polarization Index test on the isolated motor feeder.<br>
+              <strong>Key Steps:</strong> Cancel active PTW -> Issue Sanction-for-Test (SFT) -> Open Integral Earth Switch (cannot megger an earthed winding) -> Connect leads &amp; run 5 kV test (PI = 2.49 PASS) -> <strong>CRITICAL:</strong> Bleed 4,850 V DC stored capacitive charge down to 0 V before disconnecting leads -> Re-close Earth Switch -> Cancel SFT.
+            </p>
+          </div>
+          <div class="guide-step-card">
+            <strong>Mission 04: De-Isolation &amp; Safe Restoration to Service</strong>
+            <p class="guide-step-explain">
+              <strong>Objective:</strong> Cancel permit and return the Bow Thruster feeder to service.<br>
+              <strong>Key Steps:</strong> Sign off PTW return -> Remove Portable Earths (L1, L2, L3 phase clamps FIRST via Hot-Stick, PE ship earth clamp LAST) -> Close &amp; bolt cubicle door -> Unlock Key Box &amp; open Earth Switch -> Return K1-BT to VCB -> Rack to TEST (10/20) &amp; perform Close/Trip check -> Rack fully to SERVICE (20/20).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Interlocks & Traps FAQ -->
+      <div class="htab-pane" id="hpane-interlocks" style="display:none;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="faq-q">Q: Why did I receive an automatic safety deduction for donning gloves?</div>
+          <div class="faq-a">Under STCW Table A-III/6, you must roll up the gauntlet of Class 2 insulating gloves to perform a pneumatic air-leak test for pinholes immediately before donning. Failing to air-test is an automatic failure.</div>
+
+          <div class="faq-q">Q: Why is the racking crank handle blocked from turning?</div>
+          <div class="faq-a">Under IEC 60092-503 mechanical interlock rules, the racking shutter flap refuses to open if the breaker is CLOSED [I] or if the racking port has a padlock attached. Press TRIP [O] first!</div>
+
+          <div class="faq-q">Q: Why is Castell Key K1-BT trapped in the breaker?</div>
+          <div class="faq-a">Castell keys are mechanically trapped whenever the VCB is in SERVICE (20 turns) or TEST (10 turns). The key will only rotate and release when the truck reaches DISCONNECTED (0 turns).</div>
+
+          <div class="faq-q">Q: Why can't I close the Integral Earth Switch?</div>
+          <div class="faq-a">The Earth Switch is locked until the VCB is completely in DISCONNECTED (0 turns) AND the matching Castell key has been transferred and turned in the earth switch lock cylinder. On Transformer TR1, BOTH K-HV and K-LV must be inserted!</div>
+
+          <div class="faq-q">Q: Why did my 5 kV Megger read 0.0 MΩ in Mission 3?</div>
+          <div class="faq-a">You cannot Megger an earthed circuit! The Integral Earth Switch was still closed, shorting the 5,000 V test voltage directly to the ship's hull. Unlock and open the Earth Switch first under an active Sanction-for-Test.</div>
+
+          <div class="faq-q">Q: What is the Reverse CME Removal Rule in Mission 4?</div>
+          <div class="faq-a">When removing Portable Earths, always unclamp phase clamps (L1, L2, L3) via Hot-Stick FIRST, and disconnect the PE Earth Bar clamp LAST. Disconnecting PE first leaves a floating conductor at lethal induced voltage in your hands!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NATIVE MODAL 1: INTERLOCK TABLE & REFERENCE MANUAL -->
+  <dialog id="manualDialog" closedby="any" aria-labelledby="manualTitle">
+    <div style="padding:12px 16px;background:var(--surface-2);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
+      <h2 id="manualTitle" style="font-size:16px;font-weight:700;">📘 IEC 60092-503 Mechanical Interlocks &amp; COSWP Chapter 22</h2>
+      <form method="dialog"><button class="btn btn-sm">✕ Close</button></form>
+    </div>
+    <div style="padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;font-size:14px;">
+      <div style="background:var(--surface-2);border-left:3px solid var(--accent);padding:10px 12px;border-radius:var(--r-sm);">
+        <strong>The 5 Golden Rules of Marine HV Safety:</strong>
+        <ol style="margin:6px 0 0 20px;display:flex;flex-direction:column;gap:3px;">
+          <li>Disconnect completely (All-pole isolation from all sources, including 440 V back-feed).</li>
+          <li>Secure against re-connection (LOTO padlocks, shutter locks, Castell trapped keys).</li>
+          <li>Verify dead (Prove – Test – Prove using rated 6.6 kV wand &amp; proving unit).</li>
+          <li>Carry out earthing and short-circuiting (Integral earth switch and/or portable CME leads).</li>
+          <li>Provide protection against adjacent live parts &amp; issue formal Permit-to-Work (PTW) or SFT.</li>
+        </ol>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13.5px;">
+        <thead>
+          <tr style="background:var(--surface-2);text-align:left;">
+            <th style="padding:8px;border:1px solid var(--line);">Action</th>
+            <th style="padding:8px;border:1px solid var(--line);">Required Pre-Conditions</th>
+            <th style="padding:8px;border:1px solid var(--line);">Interlock Result if Not Met</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:8px;border:1px solid var(--line);"><strong>Rack VCB In/Out</strong></td>
+            <td style="padding:8px;border:1px solid var(--line);">VCB must be OPEN [O] &amp; Racking padlock removed</td>
+            <td style="padding:8px;border:1px solid var(--line);">Racking shutter physically blocked</td>
+          </tr>
+          <tr>
+            <td style="padding:8px;border:1px solid var(--line);"><strong>Close VCB [I]</strong></td>
+            <td style="padding:8px;border:1px solid var(--line);">In SERVICE (20) or TEST (10), Spring charged, Earth switch OPEN</td>
+            <td style="padding:8px;border:1px solid var(--line);">Closing latch &amp; coil mechanically blocked</td>
+          </tr>
+          <tr>
+            <td style="padding:8px;border:1px solid var(--line);"><strong>Close Earth Switch</strong></td>
+            <td style="padding:8px;border:1px solid var(--line);">VCB DISCONNECTED (0/20) &amp; Castell key(s) inserted</td>
+            <td style="padding:8px;border:1px solid var(--line);">Cannot earth live breaker slot!</td>
+          </tr>
+          <tr>
+            <td style="padding:8px;border:1px solid var(--line);"><strong>Open Cubicle Door</strong></td>
+            <td style="padding:8px;border:1px solid var(--line);">VCB DISCONNECTED &amp; Earth Switch CLOSED (or SFT bypass)</td>
+            <td style="padding:8px;border:1px solid var(--line);">Door remains mechanically bolted</td>
+          </tr>
+          <tr>
+            <td style="padding:8px;border:1px solid var(--line);"><strong>Transformer TR1</strong></td>
+            <td style="padding:8px;border:1px solid var(--line);">Isolate 440 V Secondary ACB-TR1-LV FIRST</td>
+            <td style="padding:8px;border:1px solid var(--line);">Lethal 6.6 kV back-feed from 440 V bus!</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </dialog>
+
+  <!-- NATIVE MODAL 2: PERMIT-TO-WORK (PTW) FULL DOCUMENT -->
+  <dialog id="ptwDialog" closedby="any" aria-labelledby="ptwTitle">
+    <div style="padding:12px 16px;background:var(--surface-2);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
+      <h2 id="ptwTitle" style="font-size:16px;font-weight:700;">📄 Formal High Voltage Permit-to-Work (PTW)</h2>
+      <form method="dialog"><button class="btn btn-sm">✕ Close</button></form>
+    </div>
+    <div style="padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;font-size:14px;" id="ptwModalBody">
+      <!-- Populated dynamically -->
+    </div>
+  </dialog>
+
+  <!-- NATIVE MODAL 3: AUDIT NOTICE / VIOLATION / SUCCESS -->
+  <dialog id="noticeDialog" closedby="any" aria-labelledby="noticeTitle">
+    <div style="padding:12px 16px;background:var(--surface-2);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
+      <h2 id="noticeTitle" style="font-size:16px;font-weight:700;">Assessment Notice</h2>
+      <form method="dialog"><button class="btn btn-sm" autofocus>Acknowledge</button></form>
+    </div>
+    <div style="padding:16px;font-size:14px;" id="noticeBody"></div>
+  </dialog>
+
+  <!-- ZERO-DEPENDENCY SIMULATOR ENGINE SCRIPT -->
+  <script>
+    /* ==========================================================================
+       1. SYNTHESIZED WEB AUDIO API SOUND ENGINE
+       ========================================================================== */
+    const AudioEngine = (() => {
+      let ctx = null;
+      let enabled = true;
+
+      function getCtx() {
+        if (!enabled) return null;
+        if (!ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) ctx = new AudioCtx();
+        }
+        if (ctx && ctx.state === 'suspended') ctx.resume();
+        return ctx;
+      }
+
+      function playClunk(pitch = 100) {
+        const c = getCtx();
+        if (!c) return;
+        const now = c.currentTime;
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(pitch, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.12);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        osc.connect(gain);
+        gain.connect(c.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      }
+
+      function playRatchet() {
+        const c = getCtx();
+        if (!c) return;
+        const now = c.currentTime;
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(180, now + 0.04);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+        osc.connect(gain);
+        gain.connect(c.destination);
+        osc.start(now);
+        osc.stop(now + 0.05);
+      }
+
+      function playPiezo(doubleBeep = true) {
+        const c = getCtx();
+        if (!c) return;
+        const now = c.currentTime;
+        const beep = (t, freq) => {
+          const osc = c.createOscillator();
+          const gain = c.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.18, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+          osc.connect(gain);
+          gain.connect(c.destination);
+          osc.start(t);
+          osc.stop(t + 0.09);
+        };
+        beep(now, 2800);
+        if (doubleBeep) beep(now + 0.1, 2800);
+      }
+
+      function playAlarm() {
+        const c = getCtx();
+        if (!c) return;
+        const now = c.currentTime;
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, now);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(c.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+
+      function playSuccess() {
+        const c = getCtx();
+        if (!c) return;
+        const now = c.currentTime;
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+          const osc = c.createOscillator();
+          const gain = c.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+          gain.gain.setValueAtTime(0.2, now + idx * 0.07);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.3);
+          osc.connect(gain);
+          gain.connect(c.destination);
+          osc.start(now + idx * 0.07);
+          osc.stop(now + idx * 0.07 + 0.32);
+        });
+      }
+
+      return {
+        toggle() { enabled = !enabled; return enabled; },
+        playClunk,
+        playRatchet,
+        playPiezo,
+        playAlarm,
+        playSuccess
+      };
+    })();
+
+    /* ==========================================================================
+       2. ELECTRICAL STATE & TOPOLOGY SIMULATION
+       ========================================================================== */
+    const SIM = {
+      missionId: 1,
+      mode: 'TRAIN', // 'TRAIN' or 'EXAM'
+      score: 100,
+      missionCompleted: false,
+      selectedCubicle: 'BT-M1',
+      viewMode: 'FACEPLATE', // 'FACEPLATE' | 'INTERIOR' | 'SLD'
+      activeTool: 'HAND',
+
+      // PPE status
+      ppe: {
+        suit: false,
+        glovesAirTested: false,
+        gloves: false,
+        bootsMat: false
+      },
+
+      // Castell Keys
+      keys: {
+        'K1-BT': 'VCB_TRAPPED',
+        'K-HV': 'VCB_TRAPPED',
+        'K-LV': 'VCB_TRAPPED'
+      },
+      keyBoxLocked: false,
+
+      // Prove-Test-Prove
+      ptp: {
+        state: 0, // 0: Unverified, 1: Pre-proven, 2: Tested dead, 3: Complete
+        targetCubicle: 'BT-M1',
+        phasesTested: { L1: false, L2: false, L3: false },
+        completedCubicles: {}
+      },
+
+      // Megger
+      megger: {
+        connectedCubicle: null,
+        tested: false,
+        ir1Min: null,
+        ir10Min: null,
+        piRatio: null,
+        windingChargeVolts: 0,
+        dischargedProperly: false
+      },
+
+      // PTW & SFT
+      ptw: {
+        active: false,
+        cancelled: false,
+        targetCubicle: 'BT-M1',
+        signedETO: false,
+        signedCompetent: false
+      },
+
+      sft: {
+        active: false,
+        cancelledAfterTest: false,
+        targetCubicle: 'BT-M1',
+        signedETO: false
+      },
+
+      cubicles: {}
+    };
+
+    function createCubicles() {
+      return {
+        'DG1': {
+          id: 'DG1',
+          name: 'Cubicle 1: HV Diesel Generator 1 (DG1)',
+          isHV: true,
+          vcbClosed: true,
+          rackingTurns: 20,
+          rackingPadlocked: false,
+          castellLockedOut: false,
+          earthSwitchClosed: false,
+          earthPadlocked: false,
+          earthKeysInserted: [],
+          doorOpen: false,
+          sftDoorBypass: false,
+          topShutterPadlocked: false,
+          tags: { danger: false, earth: false, sft: false },
+          cme: { pe: false, L1: false, L2: false, L3: false }
+        },
+        'BT1': {
+          id: 'BT1',
+          name: 'Cubicle 2: 6.6 kV Bus-Tie Breaker (BT1)',
+          isHV: true,
+          vcbClosed: true,
+          rackingTurns: 20,
+          rackingPadlocked: false,
+          castellLockedOut: false,
+          earthSwitchClosed: false,
+          earthPadlocked: false,
+          earthKeysInserted: [],
+          doorOpen: false,
+          sftDoorBypass: false,
+          topShutterPadlocked: false,
+          tags: { danger: false, earth: false, sft: false },
+          cme: { pe: false, L1: false, L2: false, L3: false }
+        },
+        'BT-M1': {
+          id: 'BT-M1',
+          name: 'Cubicle 3: Bow Thruster HV Motor Feeder (BT-M1)',
+          isHV: true,
+          machineryRunning: true,
+          vcbClosed: true,
+          rackingTurns: 20,
+          rackingPadlocked: false,
+          castellKeyId: 'K1-BT',
+          castellLockedOut: false,
+          earthSwitchClosed: false,
+          earthPadlocked: false,
+          earthKeysInserted: [],
+          requiredEarthKeys: ['K1-BT'],
+          doorOpen: false,
+          sftDoorBypass: false,
+          topShutterPadlocked: false,
+          tags: { danger: false, earth: false, sft: false },
+          cme: { pe: false, L1: false, L2: false, L3: false, removedProperly: false },
+          testFunctionCheckedInTestPos: false
+        },
+        'TR1-HV': {
+          id: 'TR1-HV',
+          name: 'Cubicle 4: HV/LV Transformer Primary (TR1-HV)',
+          isHV: true,
+          machineryRunning: false,
+          vcbClosed: true,
+          rackingTurns: 20,
+          rackingPadlocked: false,
+          castellKeyId: 'K-HV',
+          castellLockedOut: false,
+          earthSwitchClosed: false,
+          earthPadlocked: false,
+          earthKeysInserted: [],
+          requiredEarthKeys: ['K-HV', 'K-LV'],
+          doorOpen: false,
+          sftDoorBypass: false,
+          topShutterPadlocked: false,
+          tags: { danger: false, earth: false, sft: false },
+          cme: { pe: false, L1: false, L2: false, L3: false, removedProperly: false }
+        },
+        'ACB-TR1-LV': {
+          id: 'ACB-TR1-LV',
+          name: 'Cubicle 5: 440 V LV Switchboard Secondary (ACB-TR1-LV)',
+          isHV: false,
+          machineryRunning: true,
+          vcbClosed: true,
+          rackingTurns: 0,
+          rackingPadlocked: false,
+          castellKeyId: 'K-LV',
+          castellLockedOut: false,
+          earthSwitchClosed: false,
+          earthPadlocked: false,
+          earthKeysInserted: [],
+          doorOpen: false,
+          tags: { danger: false, earth: false, sft: false },
+          cme: { pe: false, L1: false, L2: false, L3: false }
+        }
+      };
+    }
+
+    function getTopology() {
+      const c = SIM.cubicles;
+      const portLive = c['DG1'].vcbClosed && c['DG1'].rackingTurns === 20;
+      const stbdLive = portLive && c['BT1'].vcbClosed && c['BT1'].rackingTurns === 20;
+
+      let btVolts = 0;
+      if (stbdLive && c['BT-M1'].vcbClosed && c['BT-M1'].rackingTurns === 20) {
+        btVolts = 6600;
+      } else if (SIM.megger.connectedCubicle === 'BT-M1' && SIM.megger.windingChargeVolts > 0) {
+        btVolts = SIM.megger.windingChargeVolts;
+      }
+
+      let trVolts = 0;
+      let trBackfed = false;
+      if (stbdLive && c['TR1-HV'].vcbClosed && c['TR1-HV'].rackingTurns === 20) {
+        trVolts = 6600;
+      } else if (c['ACB-TR1-LV'].vcbClosed) {
+        trVolts = 6600;
+        trBackfed = true;
+      }
+
+      const isEarthed = (id) => {
+        const cub = c[id];
+        return cub.earthSwitchClosed || (cub.cme.pe && cub.cme.L1 && cub.cme.L2 && cub.cme.L3);
+      };
+
+      return {
+        portLive,
+        stbdLive,
+        btVolts,
+        trVolts,
+        trBackfed,
+        btEarthed: isEarthed('BT-M1'),
+        trEarthed: isEarthed('TR1-HV')
+      };
+    }
+
+    function isFullPPE() {
+      return SIM.ppe.suit && SIM.ppe.glovesAirTested && SIM.ppe.gloves && SIM.ppe.bootsMat;
+    }
+
+    function logEvent(text) {
+      const el = document.getElementById('bottomStatusEvent');
+      if (el) el.textContent = `Last event: ${text}`;
+    }
+
+    function showNotice(title, html) {
+      const dlg = document.getElementById('noticeDialog');
+      const ttl = document.getElementById('noticeTitle');
+      const bdy = document.getElementById('noticeBody');
+      if (!dlg) return;
+      ttl.textContent = title;
+      bdy.innerHTML = html;
+      if (!dlg.open) dlg.showModal();
+    }
+
+    function triggerViolation(pts, title, reason, catastrophic = false) {
+      AudioEngine.playAlarm();
+      SIM.score = Math.max(0, SIM.score - pts);
+      logEvent(`[VIOLATION -${pts} pts] ${title}`);
+      if (catastrophic || SIM.mode === 'EXAM') {
+        showNotice(
+          catastrophic ? `💥 CATASTROPHIC ARC-FLASH HAZARD (-${pts} pts)` : `⚠️ SAFETY VIOLATION (-${pts} pts)`,
+          `<p style="margin-bottom:8px;"><strong>${title}</strong></p><p style="color:var(--text-2);">${reason}</p><p style="margin-top:10px;font-family:var(--font-mono);font-size:12px;">Current Score: <strong>${SIM.score} / 100</strong></p>`
+        );
+      }
+      render();
+    }
+
+    function checkPpe(action) {
+      if (!SIM.ppe.glovesAirTested && SIM.ppe.gloves) {
+        triggerViolation(15, 'HV Gloves Donned Without Roll Air-Test', 'STCW requires pneumatic roll testing for pinholes prior to donning.');
+        return false;
+      }
+      if (!isFullPPE()) {
+        triggerViolation(15, `Incomplete PPE for ${action}`, '40 cal/cm² suit, air-tested gloves, and dielectric footwear must be equipped.');
+        return false;
+      }
+      return true;
+    }
+
+    /* ==========================================================================
+       3. MISSION SETUP & STEP PROGRESSION
+       ========================================================================== */
+    function initMission(id) {
+      SIM.missionId = Number(id);
+      SIM.score = 100;
+      SIM.missionCompleted = false;
+      SIM.activeTool = 'HAND';
+      SIM.cubicles = createCubicles();
+
+      SIM.ppe = { suit: false, glovesAirTested: false, gloves: false, bootsMat: false };
+      SIM.keys = { 'K1-BT': 'VCB_TRAPPED', 'K-HV': 'VCB_TRAPPED', 'K-LV': 'VCB_TRAPPED' };
+      SIM.keyBoxLocked = false;
+
+      SIM.ptp = {
+        state: 0,
+        targetCubicle: SIM.missionId === 2 ? 'TR1-HV' : 'BT-M1',
+        phasesTested: { L1: false, L2: false, L3: false },
+        completedCubicles: {}
+      };
+
+      SIM.megger = {
+        connectedCubicle: null,
+        tested: false,
+        ir1Min: null,
+        ir10Min: null,
+        piRatio: null,
+        windingChargeVolts: 0,
+        dischargedProperly: false
+      };
+
+      SIM.ptw = {
+        active: false,
+        cancelled: false,
+        targetCubicle: SIM.missionId === 2 ? 'TR1-HV' : 'BT-M1',
+        signedETO: false,
+        signedCompetent: false
+      };
+
+      SIM.sft = {
+        active: false,
+        cancelledAfterTest: false,
+        targetCubicle: 'BT-M1',
+        signedETO: false
+      };
+
+      if (SIM.missionId === 1) {
+        SIM.selectedCubicle = 'BT-M1';
+        SIM.viewMode = 'FACEPLATE';
+        logEvent('Mission 01 loaded: Isolate Bow Thruster (BT-M1) and issue PTW.');
+      } else if (SIM.missionId === 2) {
+        SIM.selectedCubicle = 'ACB-TR1-LV';
+        SIM.viewMode = 'FACEPLATE';
+        logEvent('Mission 02 loaded: Isolate Transformer TR1. Beware of 440 V back-feed!');
+      } else if (SIM.missionId === 3) {
+        SIM.selectedCubicle = 'BT-M1';
+        SIM.viewMode = 'INTERIOR';
+        const bt = SIM.cubicles['BT-M1'];
+        bt.machineryRunning = false;
+        bt.vcbClosed = false;
+        bt.rackingTurns = 0;
+        bt.rackingPadlocked = true;
+        bt.castellLockedOut = true;
+        bt.earthKeysInserted = ['K1-BT'];
+        bt.earthSwitchClosed = true;
+        bt.earthPadlocked = true;
+        bt.doorOpen = true;
+        bt.topShutterPadlocked = true;
+        bt.tags.danger = true;
+        bt.tags.earth = true;
+        SIM.keys['K1-BT'] = 'EARTH_SWITCH';
+        SIM.ptp.completedCubicles['BT-M1'] = true;
+        SIM.ptw.active = true;
+        SIM.ptw.signedETO = true;
+        SIM.ptw.signedCompetent = true;
+        logEvent('Mission 03 loaded: Sanction-for-Test & 5 kV Megger test on BT-M1.');
+      } else if (SIM.missionId === 4) {
+        SIM.selectedCubicle = 'BT-M1';
+        SIM.viewMode = 'INTERIOR';
+        const bt = SIM.cubicles['BT-M1'];
+        bt.machineryRunning = false;
+        bt.vcbClosed = false;
+        bt.rackingTurns = 0;
+        bt.rackingPadlocked = true;
+        bt.castellLockedOut = true;
+        bt.earthKeysInserted = ['K1-BT'];
+        bt.earthSwitchClosed = true;
+        bt.earthPadlocked = true;
+        bt.doorOpen = true;
+        bt.topShutterPadlocked = true;
+        bt.tags.danger = true;
+        bt.tags.earth = true;
+        bt.cme = { pe: true, L1: true, L2: true, L3: true, removedProperly: false };
+        SIM.keys['K1-BT'] = 'EARTH_SWITCH';
+        SIM.keyBoxLocked = true;
+        SIM.ptp.completedCubicles['BT-M1'] = true;
+        SIM.ptw.active = true;
+        SIM.ptw.signedETO = true;
+        SIM.ptw.signedCompetent = true;
+        logEvent('Mission 04 loaded: Cancel PTW, remove CME, close door, restore to SERVICE.');
+      }
+
+      render();
+    }
+
+    function getLotoSteps() {
+      const c = SIM.cubicles;
+      const bt = c['BT-M1'];
+      const tr = c['TR1-HV'];
+      const lv = c['ACB-TR1-LV'];
+
+      if (SIM.missionId === 1) {
+        return [
+          {
+            title: 'Equip Full HV PPE & Roll Air-Test Gloves',
+            desc: 'Don Arc-Flash suit, perform pneumatic roll air-test on Class 2 gloves, and wear dielectric boots.',
+            done: isFullPPE(),
+            actionText: 'Don Full PPE',
+            actionFn: () => {
+              SIM.ppe = { suit: true, glovesAirTested: true, gloves: true, bootsMat: true };
+              AudioEngine.playPiezo(false);
+              logEvent('Full HV PPE donned with valid glove roll air-test.');
+              render();
+            }
+          },
+          {
+            title: 'Trip & Open Feeder VCB [O]',
+            desc: 'Interrupt 1,800 kW load by opening Vacuum Circuit Breaker (VCB).',
+            done: !bt.vcbClosed,
+            actionText: 'Trip Feeder VCB [O]',
+            actionFn: () => pressTripVCB('BT-M1')
+          },
+          {
+            title: 'Rack Out VCB to DISCONNECTED (0/20)',
+            desc: 'Crank withdrawable truck from SERVICE -> TEST -> DISCONNECTED.',
+            done: !bt.vcbClosed && bt.rackingTurns === 0,
+            actionText: 'Rack Out VCB Truck',
+            actionFn: () => rackVCB('BT-M1', -20)
+          },
+          {
+            title: 'Extract Castell Key K1-BT & Padlock Shutter',
+            desc: 'Extract key K1-BT, apply LOTO padlock to racking port, and post Danger Tag.',
+            done: bt.castellLockedOut && bt.rackingPadlocked,
+            actionText: 'Lock Out & Extract K1-BT',
+            actionFn: () => {
+              if (checkPpe('Lock Out VCB')) {
+                if (!bt.castellLockedOut) toggleCastellVCBLock('BT-M1');
+                if (!bt.rackingPadlocked) toggleRackingPadlock('BT-M1');
+                bt.tags.danger = true;
+                render();
+              }
+            }
+          },
+          {
+            title: 'Close & Padlock Integral Earth Switch',
+            desc: 'Insert K1-BT, slam close the Integral Earth Switch (⏚), and lock key in box.',
+            done: bt.earthSwitchClosed && bt.earthPadlocked && SIM.keyBoxLocked,
+            actionText: 'Close & Padlock Earth Switch',
+            actionFn: () => {
+              if (checkPpe('Earth Switch Operation')) {
+                if (!bt.earthKeysInserted.includes('K1-BT')) toggleEarthSwitchKey('BT-M1', 'K1-BT');
+                if (!bt.earthSwitchClosed) toggleIntegralEarthSwitch('BT-M1');
+                if (!bt.earthPadlocked) toggleEarthPadlock('BT-M1');
+                if (!SIM.keyBoxLocked) toggleSafetyKeyBox();
+                render();
+              }
+            }
+          },
+          {
+            title: 'Prove Dead & Issue Permit-to-Work (PTW)',
+            desc: 'Open door, padlock red busbar shutter, execute Prove–Test–Prove, and sign PTW.',
+            done: SIM.ptw.active && Boolean(SIM.ptp.completedCubicles['BT-M1']),
+            actionText: 'Prove Dead & Issue PTW',
+            actionFn: () => {
+              if (checkPpe('Prove Dead & PTW')) {
+                switchCubicleLayer('INTERIOR');
+                toggleShutterPadlock('BT-M1');
+                proveTesterOnUnit();
+                interactTerminal('BT-M1', 'L1');
+                interactTerminal('BT-M1', 'L2');
+                interactTerminal('BT-M1', 'L3');
+                proveTesterOnUnit();
+                issuePTW();
+              }
+            }
+          }
+        ];
+      }
+
+      if (SIM.missionId === 2) {
+        const cmeDone = tr.cme.pe && tr.cme.L1 && tr.cme.L2 && tr.cme.L3;
+        return [
+          {
+            title: 'Equip Full HV PPE & Roll Air-Test Gloves',
+            desc: 'Equip arc-flash suit, air-tested gloves, and dielectric footwear.',
+            done: isFullPPE(),
+            actionText: 'Don Full PPE',
+            actionFn: () => {
+              SIM.ppe = { suit: true, glovesAirTested: true, gloves: true, bootsMat: true };
+              AudioEngine.playPiezo(false);
+              render();
+            }
+          },
+          {
+            title: 'Isolate & Lock Out 440 V Secondary ACB (Back-Feed)',
+            desc: 'TRIP ACB-TR1-LV, padlock open, and extract Castell key K-LV.',
+            done: !lv.vcbClosed && lv.rackingPadlocked && lv.castellLockedOut,
+            actionText: 'Isolate & Lock 440V ACB',
+            actionFn: () => {
+              if (lv.vcbClosed) pressTripVCB('ACB-TR1-LV');
+              if (!lv.rackingPadlocked) toggleRackingPadlock('ACB-TR1-LV');
+              if (!lv.castellLockedOut) toggleCastellVCBLock('ACB-TR1-LV');
+              render();
+            }
+          },
+          {
+            title: 'Trip, Rack Out & Lock Out 6.6 kV Primary (TR1-HV)',
+            desc: 'Trip TR1-HV VCB, rack to DISCONNECTED (0/20), padlock, and extract K-HV.',
+            done: !tr.vcbClosed && tr.rackingTurns === 0 && tr.rackingPadlocked && tr.castellLockedOut,
+            actionText: 'Isolate 6.6 kV Primary',
+            actionFn: () => {
+              SIM.selectedCubicle = 'TR1-HV';
+              if (tr.vcbClosed) pressTripVCB('TR1-HV');
+              if (tr.rackingTurns > 0) rackVCB('TR1-HV', -20);
+              if (!tr.rackingPadlocked) toggleRackingPadlock('TR1-HV');
+              if (!tr.castellLockedOut) toggleCastellVCBLock('TR1-HV');
+              render();
+            }
+          },
+          {
+            title: 'Insert Dual Keys (K-HV + K-LV) & Close Earth Switch',
+            desc: 'Insert both keys into TR1-HV dual-key interlock, close and padlock earth switch.',
+            done: tr.earthKeysInserted.includes('K-HV') && tr.earthKeysInserted.includes('K-LV') && tr.earthSwitchClosed && tr.earthPadlocked && SIM.keyBoxLocked,
+            actionText: 'Close Dual-Key Earth Switch',
+            actionFn: () => {
+              if (!tr.earthKeysInserted.includes('K-HV')) toggleEarthSwitchKey('TR1-HV', 'K-HV');
+              if (!tr.earthKeysInserted.includes('K-LV')) toggleEarthSwitchKey('TR1-HV', 'K-LV');
+              if (!tr.earthSwitchClosed) toggleIntegralEarthSwitch('TR1-HV');
+              if (!tr.earthPadlocked) toggleEarthPadlock('TR1-HV');
+              if (!SIM.keyBoxLocked) toggleSafetyKeyBox();
+              render();
+            }
+          },
+          {
+            title: 'Prove Dead & Apply Portable Earth Leads (CME)',
+            desc: 'Complete Prove–Test–Prove, connect PE first, then L1, L2, L3 via Hot-Stick.',
+            done: Boolean(SIM.ptp.completedCubicles['TR1-HV']) && cmeDone,
+            actionText: 'Prove Dead & Connect CME',
+            actionFn: () => {
+              switchCubicleLayer('INTERIOR');
+              toggleShutterPadlock('TR1-HV');
+              proveTesterOnUnit();
+              interactTerminal('TR1-HV', 'L1');
+              interactTerminal('TR1-HV', 'L2');
+              interactTerminal('TR1-HV', 'L3');
+              proveTesterOnUnit();
+              SIM.activeTool = 'PORTABLE_EARTH';
+              interactTerminal('TR1-HV', 'PE');
+              interactTerminal('TR1-HV', 'L1');
+              interactTerminal('TR1-HV', 'L2');
+              interactTerminal('TR1-HV', 'L3');
+              render();
+            }
+          },
+          {
+            title: 'Complete, Sign & Issue Permit-to-Work (PTW)',
+            desc: 'Issue the formal Maritime PTW for Transformer TR1-HV maintenance.',
+            done: SIM.ptw.active && SIM.ptw.targetCubicle === 'TR1-HV',
+            actionText: 'Issue Transformer PTW',
+            actionFn: () => issuePTW()
+          }
+        ];
+      }
+
+      if (SIM.missionId === 3) {
+        return [
+          {
+            title: 'Equip Full HV PPE & Roll Air-Test Gloves',
+            desc: 'Full PPE required for high-voltage testing under Sanction-for-Test.',
+            done: isFullPPE(),
+            actionText: 'Don Full PPE',
+            actionFn: () => {
+              SIM.ppe = { suit: true, glovesAirTested: true, gloves: true, bootsMat: true };
+              render();
+            }
+          },
+          {
+            title: 'Cancel PTW & Issue Sanction-for-Test (SFT)',
+            desc: 'Cancel active PTW, post SFT warnings, and issue formal Sanction-for-Test.',
+            done: SIM.ptw.cancelled && (SIM.sft.active || SIM.sft.cancelledAfterTest),
+            actionText: 'Issue SFT & Post Warning Tag',
+            actionFn: () => {
+              if (!SIM.ptw.cancelled) cancelPTW();
+              if (!SIM.sft.active && !SIM.sft.cancelledAfterTest) issueSFT();
+              bt.tags.sft = true;
+              render();
+            }
+          },
+          {
+            title: 'Open Integral Earth Switch for 5 kV Test',
+            desc: 'Cannot Megger an earthed winding. Unlock and open Earth Switch.',
+            done: !bt.earthSwitchClosed || SIM.megger.tested,
+            actionText: 'Open Earth Switch',
+            actionFn: () => {
+              if (bt.earthPadlocked) toggleEarthPadlock('BT-M1');
+              if (bt.earthSwitchClosed) toggleIntegralEarthSwitch('BT-M1');
+              render();
+            }
+          },
+          {
+            title: 'Connect Leads & Run 5 kV PI Megger Test',
+            desc: 'Run 5,000 V DC test (1-min 450 MΩ, 10-min 1,120 MΩ, PI = 2.49 PASS).',
+            done: SIM.megger.tested && SIM.megger.piRatio === 2.49,
+            actionText: 'Connect & Run 5kV Test',
+            actionFn: () => {
+              connectMegger();
+              runMegger();
+            }
+          },
+          {
+            title: 'Discharge Winding Capacitive Voltage to 0 V',
+            desc: 'CRITICAL: Discharge 4,850 V DC stored charge back to 0 V and disconnect leads.',
+            done: SIM.megger.dischargedProperly && SIM.megger.windingChargeVolts === 0 && !SIM.megger.connectedCubicle,
+            actionText: 'Discharge to 0 V',
+            actionFn: () => dischargeMegger()
+          },
+          {
+            title: 'Re-Close Earth Switch & Cancel SFT',
+            desc: 'Re-close Integral Earth Switch to safe earthed state, then cancel SFT.',
+            done: bt.earthSwitchClosed && SIM.sft.cancelledAfterTest,
+            actionText: 'Re-Earth & Cancel SFT',
+            actionFn: () => {
+              if (!bt.earthSwitchClosed) toggleIntegralEarthSwitch('BT-M1');
+              if (!bt.earthPadlocked) toggleEarthPadlock('BT-M1');
+              if (!SIM.sft.cancelledAfterTest) cancelSFT();
+              render();
+            }
+          }
+        ];
+      }
+
+      // Mission 4: De-Isolation & Restoration
+      const cmeClean = !bt.cme.pe && !bt.cme.L1 && !bt.cme.L2 && !bt.cme.L3 && bt.cme.removedProperly;
+      return [
+        {
+          title: 'Equip Full HV PPE & Roll Air-Test Gloves',
+          desc: 'Ensure all PPE is equipped prior to de-isolation switching.',
+          done: isFullPPE(),
+          actionText: 'Don Full PPE',
+          actionFn: () => {
+            SIM.ppe = { suit: true, glovesAirTested: true, gloves: true, bootsMat: true };
+            render();
+          }
+        },
+        {
+          title: 'Sign Off Permit-to-Work Return & Cancellation',
+          desc: 'Confirm all workers and tools are clear, then cancel PTW.',
+          done: SIM.ptw.cancelled,
+          actionText: 'Sign Off & Cancel PTW',
+          actionFn: () => cancelPTW()
+        },
+        {
+          title: 'Remove CME Leads: Phases First, Earth Bar Last',
+          desc: 'Unclamp L1, L2, L3 phases via Hot-Stick FIRST; disconnect PE clamp LAST.',
+          done: cmeClean,
+          actionText: 'Remove CME (Phases 1st, PE Last)',
+          actionFn: () => {
+            SIM.activeTool = 'PORTABLE_EARTH';
+            interactTerminal('BT-M1', 'L1');
+            interactTerminal('BT-M1', 'L2');
+            interactTerminal('BT-M1', 'L3');
+            interactTerminal('BT-M1', 'PE');
+            render();
+          }
+        },
+        {
+          title: 'Unlock Red Shutter, Close Door & Open Earth Switch',
+          desc: 'Unlock red shutter, close door, unlock key box, open earth switch, transfer K1-BT.',
+          done: !bt.topShutterPadlocked && !bt.doorOpen && !SIM.keyBoxLocked && !bt.earthSwitchClosed && !bt.castellLockedOut && SIM.keys['K1-BT'] === 'VCB_TRAPPED',
+          actionText: 'Close Door & Restore Earth',
+          actionFn: () => {
+            bt.doorOpen = false;
+            if (bt.topShutterPadlocked) toggleShutterPadlock('BT-M1');
+            switchCubicleLayer('FACEPLATE');
+            if (SIM.keyBoxLocked) toggleSafetyKeyBox();
+            if (bt.earthPadlocked) toggleEarthPadlock('BT-M1');
+            if (bt.earthSwitchClosed) toggleIntegralEarthSwitch('BT-M1');
+            if (bt.earthKeysInserted.includes('K1-BT')) toggleEarthSwitchKey('BT-M1', 'K1-BT');
+            if (bt.castellLockedOut) toggleCastellVCBLock('BT-M1');
+            render();
+          }
+        },
+        {
+          title: 'Rack to TEST (10/20) & Local Function Check',
+          desc: 'Remove racking padlock, rack to TEST (10 turns), perform Close [I] & Trip [O] check.',
+          done: bt.testFunctionCheckedInTestPos,
+          actionText: 'Test in TEST Position',
+          actionFn: () => {
+            if (bt.rackingPadlocked) toggleRackingPadlock('BT-M1');
+            if (bt.rackingTurns < 10) rackVCB('BT-M1', 10 - bt.rackingTurns);
+            pressCloseVCB('BT-M1');
+            pressTripVCB('BT-M1');
+            render();
+          }
+        },
+        {
+          title: 'Rack to SERVICE (20/20) & Set Control to REMOTE',
+          desc: 'Rack VCB in fully to SERVICE (20 turns) and restore REMOTE control.',
+          done: bt.testFunctionCheckedInTestPos && bt.rackingTurns === 20,
+          actionText: 'Rack to SERVICE (20/20)',
+          actionFn: () => {
+            if (bt.rackingTurns < 20) rackVCB('BT-M1', 20 - bt.rackingTurns);
+            render();
+          }
+        }
+      ];
+    }
+
+    function checkCompletion() {
+      const steps = getLotoSteps();
+      const allDone = steps.every(s => s.done);
+      if (allDone && !SIM.missionCompleted) {
+        SIM.missionCompleted = true;
+        AudioEngine.playSuccess();
+        logEvent(`MISSION ${SIM.missionId} COMPLETED! Score: ${SIM.score}/100.`);
+        showNotice(
+          `🏆 MISSION 0${SIM.missionId} COMPLETED (${SIM.score}/100 PTS)`,
+          `<p><strong>STCW 2010 Manila Amendments Table A-III/6 Verified.</strong></p><p style="color:var(--text-2);margin-top:6px;">All mandatory interlocks, Live-Line testing, and Maritime PTW / SFT documentation verified.</p>`
+        );
+      }
+    }
+
+    /* ==========================================================================
+       4. INTERACTION DISPATCHERS (CIRCUIT BREAKER, RACKING, EARTHING, PROVING)
+       ========================================================================== */
+    function pressTripVCB(cubId) {
+      if (!checkPpe('Trip Circuit Breaker')) return;
+      const cub = SIM.cubicles[cubId];
+      if (!cub.vcbClosed) return;
+      cub.vcbClosed = false;
+      AudioEngine.playClunk(90);
+      if (cub.rackingTurns === 10 && cub._closedInTest) {
+        cub.testFunctionCheckedInTestPos = true;
+        logEvent(`${cub.id}: Function test in TEST (10/20) verified!`);
+      } else {
+        logEvent(`${cub.id}: Breaker tripped OPEN [O].`);
+      }
+      render();
+    }
+
+    function pressCloseVCB(cubId) {
+      if (!checkPpe('Close Circuit Breaker')) return;
+      const cub = SIM.cubicles[cubId];
+      if (cub.vcbClosed) return;
+      if (cub.isHV) {
+        if (cub.rackingTurns !== 20 && cub.rackingTurns !== 10) {
+          triggerViolation(10, 'Cannot Close VCB in Mid-Travel or Disconnected Position', 'VCB must be in SERVICE or TEST position.');
+          return;
+        }
+        if (cub.earthSwitchClosed) {
+          triggerViolation(25, 'Cannot Close VCB on Closed Earth Switch', 'Interlock blocked.');
+          return;
+        }
+        if (cub.castellLockedOut) {
+          triggerViolation(15, 'VCB Locked Out by Castell Key', 'Unlock Castell key first.');
+          return;
+        }
+      } else {
+        if (cub.rackingPadlocked || cub.castellLockedOut) {
+          triggerViolation(15, 'ACB-TR1-LV is Padlocked or Locked Out', 'Remove lockout first.');
+          return;
+        }
+      }
+      cub.vcbClosed = true;
+      AudioEngine.playClunk(115);
+      if (cub.rackingTurns === 10) cub._closedInTest = true;
+      logEvent(`${cub.id}: Breaker CLOSED [I].`);
+      render();
+    }
+
+    function rackVCB(cubId, delta) {
+      if (!checkPpe('Rack VCB Truck')) return;
+      const cub = SIM.cubicles[cubId];
+      if (!cub.isHV) return;
+      if (cub.vcbClosed) {
+        triggerViolation(25, 'Live Racking Prevention Interlock Engaged', 'VCB must be OPEN [O] before inserting racking crank!');
+        return;
+      }
+      if (cub.rackingPadlocked) {
+        triggerViolation(10, 'Racking Port Padlocked', 'Remove padlock before racking.');
+        return;
+      }
+      if (cub.castellLockedOut) {
+        triggerViolation(10, 'VCB Castell Key Locked Out', 'Insert key before racking.');
+        return;
+      }
+      const next = Math.max(0, Math.min(20, cub.rackingTurns + delta));
+      if (next !== cub.rackingTurns) {
+        cub.rackingTurns = next;
+        AudioEngine.playRatchet();
+        logEvent(`${cub.id}: Racked to ${cub.rackingTurns}/20 turns.`);
+        render();
+      }
+    }
+
+    function toggleRackingPadlock(cubId) {
+      if (!checkPpe('Apply/Remove Padlock')) return;
+      const cub = SIM.cubicles[cubId];
+      cub.rackingPadlocked = !cub.rackingPadlocked;
+      if (cub.rackingPadlocked && cub.castellLockedOut) {
+        cub.tags.danger = true;
+      } else if (!cub.rackingPadlocked && !cub.castellLockedOut) {
+        cub.tags.danger = false;
+      }
+      AudioEngine.playRatchet();
+      logEvent(`${cub.id}: Racking padlock ${cub.rackingPadlocked ? 'applied' : 'removed'}.`);
+      render();
+    }
+
+    function toggleCastellVCBLock(cubId) {
+      if (!checkPpe('Operate Castell Interlock')) return;
+      const cub = SIM.cubicles[cubId];
+      const kId = cub.castellKeyId;
+      if (!kId) return;
+      if (!cub.castellLockedOut) {
+        if (cub.isHV && (cub.vcbClosed || cub.rackingTurns !== 0)) {
+          triggerViolation(15, 'Key Trapped in VCB', 'VCB must be racked to DISCONNECTED (0/20) first.');
+          return;
+        }
+        if (!cub.isHV && cub.vcbClosed) {
+          triggerViolation(15, 'Key Trapped in ACB', 'ACB must be OPEN [O] first.');
+          return;
+        }
+        cub.castellLockedOut = true;
+        SIM.keys[kId] = 'HAND';
+        if (cub.rackingPadlocked) {
+          cub.tags.danger = true;
+        }
+        AudioEngine.playRatchet();
+        logEvent(`${cub.id}: Key ${kId} extracted to Hand. Ready for transfer to Earth Switch.`);
+      } else {
+        if (SIM.keys[kId] !== 'HAND') {
+          triggerViolation(10, 'Key Not in Hand', `Key ${kId} is currently at ${SIM.keys[kId]}. Extract from Earth Switch first.`);
+          return;
+        }
+        cub.castellLockedOut = false;
+        SIM.keys[kId] = 'VCB_TRAPPED';
+        if (!cub.rackingPadlocked) {
+          cub.tags.danger = false;
+        }
+        AudioEngine.playRatchet();
+        logEvent(`${cub.id}: Key ${kId} returned to VCB.`);
+      }
+      render();
+    }
+
+    function toggleEarthSwitchKey(cubId, kId) {
+      if (!checkPpe('Castell Transfer')) return;
+      const cub = SIM.cubicles[cubId];
+      const has = cub.earthKeysInserted.includes(kId);
+      if (!has) {
+        if (SIM.keys[kId] !== 'HAND') {
+          triggerViolation(10, 'Key Not in Hand', `Castell key ${kId} is currently at: ${SIM.keys[kId] || 'VCB'}. Extract it first!`);
+          return;
+        }
+        cub.earthKeysInserted.push(kId);
+        SIM.keys[kId] = 'EARTH_SWITCH';
+        AudioEngine.playRatchet();
+        logEvent(`${cub.id}: Key ${kId} inserted into Earth Switch cylinder.`);
+      } else {
+        if (cub.earthSwitchClosed) {
+          triggerViolation(15, 'Key Trapped in Closed Earth Switch', 'Open earth switch first.');
+          return;
+        }
+        cub.earthKeysInserted = cub.earthKeysInserted.filter(k => k !== kId);
+        SIM.keys[kId] = 'HAND';
+        AudioEngine.playRatchet();
+        logEvent(`${cub.id}: Key ${kId} extracted from Earth Switch.`);
+      }
+      render();
+    }
+
+    function toggleIntegralEarthSwitch(cubId) {
+      if (!checkPpe('Operate Earth Switch')) return;
+      const cub = SIM.cubicles[cubId];
+      if (!cub.isHV) return;
+      if (!cub.earthSwitchClosed) {
+        if (cub.vcbClosed || cub.rackingTurns !== 0) {
+          triggerViolation(25, 'Cannot Earth Non-Disconnected Breaker Slot', 'Rack VCB to 0/20 first.');
+          return;
+        }
+        const req = cub.requiredEarthKeys || [];
+        // Smart Auto-Transfer from HAND if student already extracted matching key(s)
+        req.forEach(k => {
+          if (!cub.earthKeysInserted.includes(k) && SIM.keys[k] === 'HAND') {
+            cub.earthKeysInserted.push(k);
+            SIM.keys[k] = 'EARTH_SWITCH';
+            logEvent(`${cub.id}: Key ${k} auto-transferred & inserted into Earth Switch cylinder.`);
+          }
+        });
+        const missing = req.filter(k => !cub.earthKeysInserted.includes(k));
+        if (missing.length > 0) {
+          triggerViolation(20, 'Missing Castell Key(s) for Earth Switch', `Requires [${missing.join(', ')}]. Extract key from VCB first!`);
+          return;
+        }
+        cub.earthSwitchClosed = true;
+        if (cub.earthPadlocked) cub.tags.earth = true;
+        AudioEngine.playClunk(70);
+        logEvent(`${cub.id}: Earth Switch closed (EARTHED).`);
+      } else {
+        cub.earthSwitchClosed = false;
+        cub.tags.earth = false;
+        AudioEngine.playClunk(95);
+        logEvent(`${cub.id}: Earth Switch OPENED.`);
+      }
+      render();
+    }
+
+    function toggleEarthPadlock(cubId) {
+      if (!checkPpe('Padlock Earth Switch')) return;
+      const cub = SIM.cubicles[cubId];
+      cub.earthPadlocked = !cub.earthPadlocked;
+      if (cub.earthSwitchClosed && cub.earthPadlocked) {
+        cub.tags.earth = true;
+      } else if (!cub.earthSwitchClosed && !cub.earthPadlocked) {
+        cub.tags.earth = false;
+      }
+      AudioEngine.playRatchet();
+      logEvent(`${cub.id}: Earth switch padlock ${cub.earthPadlocked ? 'applied' : 'removed'}.`);
+      render();
+    }
+
+    function toggleSafetyKeyBox() {
+      if (!SIM.keyBoxLocked) {
+        SIM.keyBoxLocked = true;
+        AudioEngine.playRatchet();
+        logEvent('Safety Key Box LOCKED.');
+      } else {
+        SIM.keyBoxLocked = false;
+        AudioEngine.playRatchet();
+        logEvent('Safety Key Box UNLOCKED.');
+      }
+      render();
+    }
+
+    function switchCubicleLayer(layer) {
+      const cub = SIM.cubicles[SIM.selectedCubicle];
+      if (!cub.isHV) return;
+      if (layer === 'INTERIOR') {
+        if (!checkPpe('Open Enclosure Door')) return;
+        if (cub.rackingTurns !== 0) {
+          triggerViolation(20, 'Door Interlocked: VCB In-Slot', 'Rack to 0/20 first.');
+          return;
+        }
+        if (!cub.earthSwitchClosed && !cub.sftDoorBypass) {
+          triggerViolation(20, 'Door Interlocked: Earth Switch Not Closed', 'Earth switch must be closed or SFT bypass used.');
+          return;
+        }
+        cub.doorOpen = true;
+        SIM.viewMode = 'INTERIOR';
+        AudioEngine.playClunk(90);
+        logEvent(`${cub.id}: Door opened to internal compartment.`);
+      } else {
+        cub.doorOpen = false;
+        SIM.viewMode = 'FACEPLATE';
+        AudioEngine.playClunk(100);
+        logEvent(`${cub.id}: Door closed & bolted.`);
+      }
+      render();
+    }
+
+    function toggleShutterPadlock(cubId) {
+      if (!checkPpe('Padlock Red Busbar Shutter')) return;
+      const cub = SIM.cubicles[cubId];
+      cub.topShutterPadlocked = !cub.topShutterPadlocked;
+      AudioEngine.playRatchet();
+      logEvent(`${cub.id}: Red 6.6 kV busbar shutter ${cub.topShutterPadlocked ? 'padlocked' : 'unlocked'}.`);
+      render();
+    }
+
+    function proveTesterOnUnit() {
+      if (!checkPpe('Prove HV Tester')) return;
+      SIM.activeTool = 'HV_TESTER';
+      AudioEngine.playPiezo(true);
+      const tgt = SIM.selectedCubicle === 'TR1-HV' ? 'TR1-HV' : 'BT-M1';
+      if (SIM.ptp.state === 0 || SIM.ptp.targetCubicle !== tgt) {
+        SIM.ptp.targetCubicle = tgt;
+        SIM.ptp.state = 1;
+        SIM.ptp.phasesTested = { L1: false, L2: false, L3: false };
+        logEvent(`PTP Step 1: Tester proven on unit for ${tgt}. Now test L1, L2, L3.`);
+      } else if (SIM.ptp.state === 2 && SIM.ptp.targetCubicle === tgt) {
+        SIM.ptp.state = 3;
+        SIM.ptp.completedCubicles[tgt] = true;
+        logEvent(`PTP Step 3: Re-proven on unit! Prove-Test-Prove complete for ${tgt}.`);
+      }
+      render();
+    }
+
+    function interactTerminal(cubId, term) {
+      if (!checkPpe(`Interact with ${term}`)) return;
+      const cub = SIM.cubicles[cubId];
+      const topo = getTopology();
+      const volts = cubId === 'TR1-HV' ? topo.trVolts : topo.btVolts;
+
+      if (SIM.activeTool === 'HV_TESTER') {
+        if (term === 'PE') {
+          AudioEngine.playRatchet();
+          logEvent('PE Earth Bar is at 0.0 V ground potential.');
+          return;
+        }
+        if (volts > 0) {
+          AudioEngine.playPiezo(true);
+          triggerViolation(30, `LIVE VOLTAGE DETECTED ON ${cubId} ${term}`, `Feeder is energized at ${volts} V!`);
+          return;
+        }
+        if (SIM.ptp.state === 0) {
+          triggerViolation(15, 'Tested Terminal Without First Proving Tester on Unit', 'Prove tester pre-test!');
+          return;
+        }
+        SIM.ptp.phasesTested[term] = true;
+        AudioEngine.playRatchet();
+        if (SIM.ptp.phasesTested.L1 && SIM.ptp.phasesTested.L2 && SIM.ptp.phasesTested.L3) {
+          SIM.ptp.state = 2;
+          logEvent(`PTP Step 2: L1, L2, L3 dead (0.0 V). Re-prove tester on unit now.`);
+        }
+        render();
+        return;
+      }
+
+      if (SIM.activeTool === 'PORTABLE_EARTH') {
+        if (volts > 0) {
+          triggerViolation(50, `Arc-Flash: Attached CME to Energized Terminal (${volts} V)!`, 'Lethal hazard.', true);
+          return;
+        }
+        if (term === 'PE') {
+          if (!cub.cme.pe) {
+            cub.cme.pe = true;
+            AudioEngine.playClunk(110);
+            logEvent('CME Earth clamp connected to Ship Earth Bar (PE) FIRST.');
+          } else {
+            if (cub.cme.L1 || cub.cme.L2 || cub.cme.L3) {
+              triggerViolation(25, 'Removed PE Clamp Before Phase Clamps!', 'Remove L1, L2, L3 first, PE last!');
+              return;
+            }
+            cub.cme.pe = false;
+            cub.cme.removedProperly = true;
+            AudioEngine.playClunk(110);
+            logEvent('CME Earth clamp removed LAST.');
+          }
+        } else {
+          if (!cub.cme[term]) {
+            if (!cub.cme.pe) {
+              triggerViolation(25, 'Attached Phase Clamp Before Earth Bar (PE)!', 'Always connect PE first.');
+              return;
+            }
+            cub.cme[term] = true;
+            AudioEngine.playClunk(100);
+            logEvent(`CME attached to phase ${term}.`);
+          } else {
+            cub.cme[term] = false;
+            AudioEngine.playClunk(100);
+            logEvent(`CME removed from phase ${term}.`);
+          }
+        }
+        render();
+      }
+    }
+
+    function connectMegger() {
+      if (!checkPpe('Connect Megger Leads')) return;
+      SIM.megger.connectedCubicle = 'BT-M1';
+      AudioEngine.playRatchet();
+      logEvent('Megger test leads connected.');
+      render();
+    }
+
+    function runMegger() {
+      if (!checkPpe('Run 5 kV Megger Test')) return;
+      const bt = SIM.cubicles['BT-M1'];
+      if (bt.earthSwitchClosed) {
+        AudioEngine.playAlarm();
+        SIM.megger.ir1Min = 0.0;
+        SIM.megger.piRatio = 0.0;
+        logEvent('Megger reads 0.0 MΩ (Earth switch is still CLOSED).');
+        render();
+        return;
+      }
+      AudioEngine.playPiezo(true);
+      SIM.megger.tested = true;
+      SIM.megger.ir1Min = 450;
+      SIM.megger.ir10Min = 1120;
+      SIM.megger.piRatio = 2.49;
+      SIM.megger.windingChargeVolts = 4850;
+      SIM.megger.dischargedProperly = false;
+      logEvent('5 kV PI Test Complete (PI = 2.49 PASS). 4,850 V DC trapped charge!');
+      render();
+    }
+
+    function dischargeMegger() {
+      AudioEngine.playClunk(130);
+      SIM.megger.windingChargeVolts = 0;
+      SIM.megger.dischargedProperly = true;
+      SIM.megger.connectedCubicle = null;
+      logEvent('Capacitive charge bled to 0 V DC; test leads disconnected.');
+      render();
+    }
+
+    function issuePTW() {
+      const tgt = SIM.missionId === 2 ? 'TR1-HV' : 'BT-M1';
+      SIM.ptw.active = true;
+      SIM.ptw.cancelled = false;
+      SIM.ptw.targetCubicle = tgt;
+      SIM.ptw.signedETO = true;
+      SIM.ptw.signedCompetent = true;
+      AudioEngine.playClunk(120);
+      logEvent(`Permit-to-Work issued for ${tgt}.`);
+      render();
+    }
+
+    function cancelPTW() {
+      SIM.ptw.active = false;
+      SIM.ptw.cancelled = true;
+      AudioEngine.playClunk(110);
+      logEvent('Permit-to-Work cancelled.');
+      render();
+    }
+
+    function issueSFT() {
+      SIM.sft.active = true;
+      SIM.sft.cancelledAfterTest = false;
+      SIM.sft.signedETO = true;
+      AudioEngine.playClunk(120);
+      logEvent('Sanction-for-Test (SFT) issued for BT-M1.');
+      render();
+    }
+
+    function cancelSFT() {
+      SIM.sft.active = false;
+      SIM.sft.cancelledAfterTest = true;
+      AudioEngine.playClunk(110);
+      logEvent('Sanction-for-Test (SFT) cancelled.');
+      render();
+    }
+
+    /* ==========================================================================
+       5. MAIN RENDER FUNCTION & DOM UPDATES
+       ========================================================================== */
+    function render() {
+      const topo = getTopology();
+      const cub = SIM.cubicles[SIM.selectedCubicle];
+
+      // Top telemetry
+      document.getElementById('topScoreBadge').textContent = `SCORE: ${SIM.score} / 100`;
+      document.getElementById('topTelBus').textContent = topo.stbdLive ? '60.00 Hz — 6.60 kV' : '0.00 kV (DEAD)';
+      document.getElementById('topTelBus').className = topo.stbdLive ? 'is-live' : '';
+      document.getElementById('topTelRules').textContent = SIM.ptw.active ? 'COSWP COMPLIANT' : 'STCW IN PROGRESS';
+      document.getElementById('topTelRules').className = SIM.ptw.active ? 'is-safe' : 'is-warn';
+
+      // Left panel PPE rows
+      const gRow = document.getElementById('ppeGlovesRow');
+      gRow.className = `ppe-row ${SIM.ppe.gloves && SIM.ppe.glovesAirTested ? 'equipped' : ''}`;
+      document.getElementById('ppeGlovesSub').textContent = SIM.ppe.gloves
+        ? (SIM.ppe.glovesAirTested ? 'Air-Tested & Donned' : 'DONNED WITHOUT AIR-TEST')
+        : (SIM.ppe.glovesAirTested ? 'Air-Tested (Ready)' : 'Roll Air-Test Required');
+
+      const sRow = document.getElementById('ppeSuitRow');
+      sRow.className = `ppe-row ${SIM.ppe.suit ? 'equipped' : ''}`;
+      document.getElementById('ppeSuitSub').textContent = SIM.ppe.suit ? 'Equipped (40 cal/cm²)' : 'Not Donned';
+
+      const bRow = document.getElementById('ppeBootsRow');
+      bRow.className = `ppe-row ${SIM.ppe.bootsMat ? 'equipped' : ''}`;
+      document.getElementById('ppeBootsSub').textContent = SIM.ppe.bootsMat ? 'Equipped & Deployed' : 'Not Deployed';
+
+      // Toolbelt buttons
+      document.getElementById('currentToolLabel').textContent = SIM.activeTool;
+      document.querySelectorAll('#toolbeltGrid .tool-item').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.t === SIM.activeTool);
+      });
+
+      // Keys display
+      const keyWrap = document.getElementById('keyChipsContainer');
+      keyWrap.innerHTML = Object.keys(SIM.keys).map(k => {
+        const loc = SIM.keys[k];
+        const inHand = loc === 'HAND';
+        return `<span class="key-tag ${inHand ? 'in-hand' : ''}">🔑 ${k}: ${loc}</span>`;
+      }).join('');
+      document.getElementById('keyBoxStatusBadge').textContent = SIM.keyBoxLocked ? 'KEY BOX: LOCKED 🔒' : 'KEY BOX: OPEN';
+
+      // Megger values
+      const m = SIM.megger;
+      document.getElementById('valMegger1Min').textContent = m.ir1Min !== null ? `${m.ir1Min} MΩ` : '---';
+      document.getElementById('valMegger10Min').textContent = m.ir10Min !== null ? `${m.ir10Min} MΩ` : '---';
+      document.getElementById('valMeggerPI').textContent = m.piRatio !== null ? `${m.piRatio}` : '---';
+      document.getElementById('valMeggerVolts').textContent = `${m.windingChargeVolts} V DC`;
+      document.getElementById('meggerLeadBadge').textContent = m.connectedCubicle ? `LEADS ON ${m.connectedCubicle}` : 'DISCONNECTED';
+
+      // View toolbar tabs & cubicle pills
+      document.getElementById('tabViewFaceplate').classList.toggle('active', SIM.viewMode === 'FACEPLATE');
+      document.getElementById('tabViewInterior').classList.toggle('active', SIM.viewMode === 'INTERIOR');
+      document.getElementById('tabViewSLD').classList.toggle('active', SIM.viewMode === 'SLD');
+      document.querySelectorAll('#cubicleNavPills .cub-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.c === SIM.selectedCubicle);
+      });
+
+      // Render Stage View Area
+      renderStage();
+
+      // Bottom Busbar Mimic Strip
+      document.getElementById('busCardA').className = `bus-card ${topo.portLive ? 'live' : ''}`;
+      document.getElementById('busCardB').className = `bus-card ${topo.stbdLive ? 'live' : ''}`;
+      document.getElementById('busCardFeeder').className = `bus-card ${topo.btEarthed ? 'earthed' : topo.btVolts > 0 ? 'live' : ''}`;
+      document.getElementById('busFeederText').textContent = topo.btEarthed ? '0.0 V (EARTHED)' : `${topo.btVolts} V`;
+
+      document.getElementById('busCardTr1').className = `bus-card ${topo.trEarthed ? 'earthed' : topo.trVolts > 0 ? 'live' : ''}`;
+      document.getElementById('busTr1Text').textContent = topo.trEarthed ? '0.0 V (EARTHED)' : topo.trBackfed ? '6.6 kV BACK-FEED!' : `${topo.trVolts} V`;
+
+      // Right Panel Metadata
+      document.getElementById('inspEyebrow').textContent = `${cub.name}`;
+      document.getElementById('inspTitle').textContent = cub.id;
+      const isLive = (cub.id === 'BT-M1' && topo.btVolts > 0) || (cub.id === 'TR1-HV' && topo.trVolts > 0);
+      const isEarthed = (cub.id === 'BT-M1' && topo.btEarthed) || (cub.id === 'TR1-HV' && topo.trEarthed);
+      const badge = document.getElementById('inspStatusBadge');
+      if (isEarthed) {
+        badge.className = 'state-flag green';
+        badge.textContent = 'EARTHED (SAFE)';
+      } else if (isLive) {
+        badge.className = 'state-flag red';
+        badge.textContent = 'POWERED (LIVE)';
+      } else {
+        badge.className = 'state-flag amber';
+        badge.textContent = 'ISOLATED';
+      }
+
+      document.getElementById('metaVoltage').textContent = isLive ? '6.60 kV — 60.0 Hz' : '0.00 kV (DEAD)';
+      document.getElementById('metaTruck').textContent = cub.isHV ? (cub.rackingTurns === 20 ? 'SERVICE (20/20)' : cub.rackingTurns === 10 ? 'TEST (10/20)' : 'DISCONNECTED (0/20)') : 'FIXED ACB';
+      document.getElementById('metaEarth').textContent = cub.earthSwitchClosed ? 'EARTHED (CLOSED)' : 'OPEN (UNEARTHED)';
+
+      // Right Panel LOTO Strip
+      document.getElementById('lotoStripVcb').textContent = cub.vcbClosed ? 'CLOSED — LIVE' : 'OPEN — SAFE';
+      document.getElementById('lotoStripVcb').style.color = cub.vcbClosed ? 'var(--energized)' : 'var(--ok)';
+      document.getElementById('lotoStripTruck').textContent = cub.isHV ? (cub.rackingTurns === 20 ? 'SERVICE' : cub.rackingTurns === 10 ? 'TEST' : 'DISCONNECTED') : 'N/A';
+      document.getElementById('lotoStripPtp').textContent = SIM.ptp.completedCubicles[cub.id] ? 'PROVE-TEST-PROVE OK' : 'NOT PROVEN';
+      document.getElementById('lotoStripPtp').style.color = SIM.ptp.completedCubicles[cub.id] ? 'var(--ok)' : 'var(--warn)';
+      document.getElementById('lotoStripEarth').textContent = cub.earthSwitchClosed ? 'EARTHED' : 'OPEN';
+
+      // Render LOTO Steps List
+      renderLotoSteps();
+
+      // Render Tutorial Walkthrough
+      renderTutorialWalkthrough();
+
+      // Check Mission Completion
+      checkCompletion();
+    }
+
+    function renderStage() {
+      const stage = document.getElementById('viewStageArea');
+      const cub = SIM.cubicles[SIM.selectedCubicle];
+      const topo = getTopology();
+
+      if (SIM.viewMode === 'SLD') {
+        stage.innerHTML = `
+          <div class="switchgear-card" style="padding:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <h3 style="margin:0;">Single-Line Diagram (6.6 kV &amp; 440 V)</h3>
+              <span class="small-badge" style="color:var(--text-2);">SYSTEM VOLTAGE MIMIC</span>
+            </div>
+            <svg viewBox="0 0 760 160" style="width:100%;height:160px;background:#f5f6f7;border:1px solid var(--line);border-radius:var(--r);">
+              <!-- Port & Stbd 6.6 kV Buses -->
+              <line x1="20" y1="40" x2="360" y2="40" stroke="${topo.portLive ? '#c22b2b' : '#8c949b'}" stroke-width="5"/>
+              <text x="25" y="30" fill="#15181b" font-family="var(--font-sans)" font-size="12" font-weight="700">PORT 6.6 kV BUS</text>
+              <line x1="400" y1="40" x2="740" y2="40" stroke="${topo.stbdLive ? '#c22b2b' : '#8c949b'}" stroke-width="5"/>
+              <text x="405" y="30" fill="#15181b" font-family="var(--font-sans)" font-size="12" font-weight="700">STBD 6.6 kV BUS</text>
+              
+              <!-- Bus Tie Breaker BT1 -->
+              <rect x="360" y="28" width="40" height="24" rx="2" fill="#fff" stroke="#15181b" stroke-width="1.5"/>
+              <text x="380" y="44" text-anchor="middle" font-size="11" font-weight="bold">BT1</text>
+              
+              <!-- DG1 Feeder -->
+              <line x1="120" y1="40" x2="120" y2="100" stroke="${topo.portLive ? '#c22b2b' : '#8c949b'}" stroke-width="3"/>
+              <circle cx="120" cy="115" r="14" fill="#fff" stroke="#15181b" stroke-width="1.5"/>
+              <text x="120" y="119" text-anchor="middle" font-size="11" font-weight="bold">G1</text>
+              <text x="145" y="118" font-size="12">DG1 (6.6 kV)</text>
+
+              <!-- Bow Thruster Feeder (BT-M1) -->
+              <line x1="500" y1="40" x2="500" y2="100" stroke="${topo.btEarthed ? '#2b7a3d' : topo.btVolts > 0 ? '#c22b2b' : '#8c949b'}" stroke-width="3"/>
+              <circle cx="500" cy="115" r="14" fill="#fff" stroke="#15181b" stroke-width="1.5"/>
+              <text x="500" y="119" text-anchor="middle" font-size="11" font-weight="bold">M1</text>
+              <text x="525" y="118" font-size="12">Bow Thruster (BT-M1)</text>
+
+              <!-- Transformer Feeder (TR1-HV) -->
+              <line x1="640" y1="40" x2="640" y2="95" stroke="${topo.trEarthed ? '#2b7a3d' : topo.trVolts > 0 ? '#c22b2b' : '#8c949b'}" stroke-width="3"/>
+              <circle cx="640" cy="105" r="9" fill="none" stroke="#15181b" stroke-width="1.5"/>
+              <circle cx="640" cy="118" r="9" fill="none" stroke="#15181b" stroke-width="1.5"/>
+              <text x="658" y="114" font-size="12">TR1 (6.6/0.44kV)</text>
+            </svg>
+          </div>
+        `;
+        return;
+      }
+
+      if (SIM.viewMode === 'INTERIOR' && cub.isHV) {
+        const volts = cub.id === 'TR1-HV' ? topo.trVolts : topo.btVolts;
+        stage.innerHTML = `
+          <div class="switchgear-card">
+            <div class="switchgear-card-header">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <h3 style="margin:0;">${cub.name} — Internal Compartment (Door Open)</h3>
+                <span class="state-flag green">ENCLOSURE DOOR OPEN</span>
+              </div>
+              <button type="button" class="btn btn-sm" onclick="switchCubicleLayer('FACEPLATE')">Close &amp; Bolt Door</button>
+            </div>
+            
+            <div style="padding:14px;display:flex;flex-direction:column;gap:12px;">
+              <!-- 2.5D Cutaway Visualization of Open Switchgear Interior -->
+              <svg viewBox="0 0 760 170" style="width:100%;height:170px;background:#111827;border-radius:var(--r);border:1px solid #374151;overflow:hidden;">
+                <!-- Upper Chamber Background (Live Busbar Zone) -->
+                <rect x="0" y="0" width="760" height="75" fill="#1f2937"/>
+                
+                <!-- 3 Copper Main Busbars running through upper chamber -->
+                <rect x="0" y="15" width="760" height="12" fill="#b45309" opacity="0.6"/>
+                <rect x="0" y="32" width="760" height="12" fill="#d97706" opacity="0.6"/>
+                <rect x="0" y="49" width="760" height="12" fill="#f59e0b" opacity="0.6"/>
+                <text x="20" y="24" fill="#fef3c7" font-family="var(--font-mono)" font-size="9" font-weight="700">6.6 kV BUS L1</text>
+                <text x="20" y="41" fill="#fef3c7" font-family="var(--font-mono)" font-size="9" font-weight="700">6.6 kV BUS L2</text>
+                <text x="20" y="58" fill="#fef3c7" font-family="var(--font-mono)" font-size="9" font-weight="700">6.6 kV BUS L3</text>
+
+                <!-- RED SAFETY DROP-SHUTTER (Drops down over the live busbars) -->
+                <rect x="140" y="8" width="480" height="60" rx="3" fill="#991b1b" stroke="#ef4444" stroke-width="2"/>
+                <!-- Hazard Chevron Border -->
+                <rect x="140" y="8" width="480" height="10" class="hazard-stripe"/>
+                <rect x="140" y="58" width="480" height="10" class="hazard-stripe"/>
+                <text x="380" y="34" fill="#ffffff" font-family="var(--font-sans)" font-size="12" font-weight="800" text-anchor="middle" letter-spacing="0.5">
+                  ⚠ TOP SHUTTER: DANGER 6.6 kV LIVE BUSBARS
+                </text>
+                <text x="380" y="48" fill="#fecaca" font-family="var(--font-mono)" font-size="10" font-weight="700" text-anchor="middle">
+                  ${cub.topShutterPadlocked ? '🔒 SHUTTER SECURELY PADLOCKED CLOSED (SAFE)' : '🔓 UNPADLOCKED (LOTO PADLOCK REQUIRED)'}
+                </text>
+
+                <!-- Divider Shelf -->
+                <rect x="0" y="74" width="760" height="6" fill="#374151"/>
+
+                <!-- Lower Chamber (Feeder & Cable Terminal Zone) -->
+                <rect x="0" y="80" width="760" height="90" fill="#0f172a"/>
+                
+                <!-- Cast Resin Spout Bushings (L1, L2, L3) -->
+                <g transform="translate(190, 88)">
+                  <!-- Bushing 1 -->
+                  <circle cx="40" cy="30" r="22" fill="#451a03" stroke="#b45309" stroke-width="2"/>
+                  <circle cx="40" cy="30" r="12" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.5"/>
+                  <circle cx="40" cy="30" r="5" fill="${volts > 0 ? '#ef4444' : '#22c55e'}"/>
+                  <text x="40" y="66" fill="#cbd5e1" font-family="var(--font-mono)" font-size="10" font-weight="700" text-anchor="middle">Phase L1</text>
+
+                  <!-- Bushing 2 -->
+                  <circle cx="190" cy="30" r="22" fill="#451a03" stroke="#b45309" stroke-width="2"/>
+                  <circle cx="190" cy="30" r="12" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.5"/>
+                  <circle cx="190" cy="30" r="5" fill="${volts > 0 ? '#ef4444' : '#22c55e'}"/>
+                  <text x="190" y="66" fill="#cbd5e1" font-family="var(--font-mono)" font-size="10" font-weight="700" text-anchor="middle">Phase L2</text>
+
+                  <!-- Bushing 3 -->
+                  <circle cx="340" cy="30" r="22" fill="#451a03" stroke="#b45309" stroke-width="2"/>
+                  <circle cx="340" cy="30" r="12" fill="#1e293b" stroke="#cbd5e1" stroke-width="1.5"/>
+                  <circle cx="340" cy="30" r="5" fill="${volts > 0 ? '#ef4444' : '#22c55e'}"/>
+                  <text x="340" y="66" fill="#cbd5e1" font-family="var(--font-mono)" font-size="10" font-weight="700" text-anchor="middle">Phase L3</text>
+                </g>
+
+                <!-- Hull Ground Bar across bottom -->
+                <rect x="0" y="152" width="760" height="16" fill="#15803d" stroke="#22c55e"/>
+                <text x="380" y="164" fill="#ffffff" font-family="var(--font-mono)" font-size="9" font-weight="700" text-anchor="middle">⏚ SHIP HULL SOLID GROUND BUSBAR</text>
+              </svg>
+
+              <!-- Shutter Action Control -->
+              <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);">
+                <div>
+                  <strong>Red Shutter LOTO Protection:</strong>
+                  <span style="font-size:13px;margin-left:6px;color:${cub.topShutterPadlocked ? 'var(--ok)' : 'var(--alarm)'};">
+                    ${cub.topShutterPadlocked ? '✓ Padlocked (Live bus isolated)' : '⚠ Unlocked (Must be padlocked before opening PTW)'}
+                  </span>
+                </div>
+                <button type="button" class="btn btn-sm ${cub.topShutterPadlocked ? 'btn-success' : 'btn-danger'}" onclick="toggleShutterPadlock('${cub.id}')">
+                  ${cub.topShutterPadlocked ? 'Unlock Shutter' : 'Padlock Red Shutter'}
+                </button>
+              </div>
+
+              <!-- Terminals Grid for Prove-Test-Prove & CME -->
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">
+                <span style="font-size:13px;font-weight:600;color:var(--text-2);">Terminal Touch Points (Prove Dead &amp; Apply CME):</span>
+                <span class="small-badge" style="color:${volts > 0 ? 'var(--alarm)' : 'var(--ok)'};">
+                  ${volts > 0 ? '⚡ 6.6 kV VOLTAGE DETECTED' : '0.00 kV VERIFIED DEAD'}
+                </span>
+              </div>
+              <div class="terminals-grid">
+                <div class="terminal-card ${cub.cme.pe ? 'earthed' : ''}" onclick="interactTerminal('${cub.id}','PE')">
+                  <div class="terminal-lug pe">PE</div>
+                  <strong style="font-size:13px;">Ship Earth Bar</strong>
+                  <span style="font-size:11.5px;color:var(--text-3);">${cub.cme.pe ? '✓ CME Clamped' : 'Click to Clamp PE'}</span>
+                </div>
+                ${['L1', 'L2', 'L3'].map(p => `
+                  <div class="terminal-card ${cub.cme[p] ? 'earthed' : ''} ${volts > 0 ? 'live-warning' : ''}" onclick="interactTerminal('${cub.id}','${p}')">
+                    <div class="terminal-lug">${p}</div>
+                    <strong style="font-size:13px;">Phase ${p}</strong>
+                    <span style="font-size:11.5px;color:var(--text-3);">${cub.cme[p] ? '✓ Earthed' : 'Probe / Clamp'}</span>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:8px;border-top:1px solid var(--line);">
+                <button type="button" class="btn btn-sm btn-primary" onclick="proveTesterOnUnit()">⚡ Prove 6.6 kV Wand on Unit</button>
+                <button type="button" class="btn btn-sm" onclick="switchCubicleLayer('FACEPLATE')">Close &amp; Bolt Door</button>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // ==========================================
+      // FACEPLATE VIEW (Industrial 2.5D Switchgear)
+      // ==========================================
+      const cviLive = (cub.id === 'BT-M1' && topo.btVolts > 0) || (cub.id === 'TR1-HV' && topo.trVolts > 0) || (cub.id === 'DG1' && topo.portLive) || (cub.id === 'ACB-TR1-LV');
+      const truckX = cub.rackingTurns === 20 ? 40 : cub.rackingTurns === 10 ? 125 : 210;
+
+      stage.innerHTML = `
+        <div class="switchgear-card">
+          <div class="switchgear-card-header">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <h3 style="margin:0;">${cub.name}</h3>
+              <div style="display:flex;gap:4px;align-items:center;">
+                ${cub.tags && cub.tags.danger ? '<span class="safety-tag-badge danger">⚠️ DANGER: DO NOT OPERATE</span>' : ''}
+                ${cub.tags && cub.tags.earth ? '<span class="safety-tag-badge earth">⏚ CIRCUIT EARTHED</span>' : ''}
+                ${cub.tags && cub.tags.sft ? '<span class="safety-tag-badge sft">⚡ SANCTION-FOR-TEST</span>' : ''}
+              </div>
+            </div>
+            <span class="state-flag ${cub.vcbClosed ? 'red' : 'green'}">${cub.vcbClosed ? 'CLOSED [I]' : 'OPEN [O]'}</span>
+          </div>
+
+          <div class="switchgear-card-body">
+            <!-- Left Sub-compartment: VCB Controls & 2.5D Carriage Visual -->
+            <div class="sub-compartment">
+              <div class="sub-compartment-header">
+                <span>${cub.isHV ? 'Vacuum Circuit Breaker (VCB)' : '440 V Air Circuit Breaker (ACB)'}</span>
+                <span class="state-flag ${cub.vcbClosed ? 'red' : 'green'}">${cub.vcbClosed ? 'CLOSED' : 'OPEN'}</span>
+              </div>
+
+              <!-- Motor / Feeder Running Banner if applicable -->
+              ${cub.machineryRunning !== undefined ? `
+                <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);padding:6px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;">
+                  <span>Motor Drive: <strong>${cub.machineryRunning ? 'RUNNING (1,800 kW)' : 'STOPPED'}</strong></span>
+                  <button type="button" class="btn btn-sm ${cub.machineryRunning ? 'btn-danger' : 'btn-success'}" onclick="SIM.cubicles['${cub.id}'].machineryRunning = !SIM.cubicles['${cub.id}'].machineryRunning; render();">
+                    ${cub.machineryRunning ? 'Stop Drive' : 'Start Drive'}
+                  </button>
+                </div>
+              ` : ''}
+
+              <!-- 2.5D Mechanical Inspection Windows -->
+              <svg viewBox="0 0 350 56" style="width:100%;height:56px;background:#1e252d;border-radius:var(--r-sm);border:1px solid #353b41;">
+                <defs>
+                  <linearGradient id="glassReflect" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.14"/>
+                    <stop offset="60%" stop-color="#ffffff" stop-opacity="0.0"/>
+                  </linearGradient>
+                </defs>
+                <!-- Window 1: Main Contact Flag -->
+                <g transform="translate(8, 6)">
+                  <rect width="105" height="44" rx="3" fill="#0d1117" stroke="#30363d" stroke-width="1.2"/>
+                  <text x="52.5" y="13" fill="#94a3b8" font-family="var(--font-sans)" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.5">MAIN CONTACTS</text>
+                  ${cub.vcbClosed ? `
+                    <rect x="6" y="17" width="93" height="22" rx="2" fill="#b91c1c" stroke="#ef4444"/>
+                    <text x="52.5" y="32" fill="#ffffff" font-family="var(--font-mono)" font-size="12" font-weight="900" text-anchor="middle">[ I ] CLOSED</text>
+                  ` : `
+                    <rect x="6" y="17" width="93" height="22" rx="2" fill="#15803d" stroke="#22c55e"/>
+                    <text x="52.5" y="32" fill="#ffffff" font-family="var(--font-mono)" font-size="12" font-weight="900" text-anchor="middle">[ O ] OPEN</text>
+                  `}
+                  <rect width="105" height="44" rx="3" fill="url(#glassReflect)" pointer-events="none"/>
+                </g>
+
+                <!-- Window 2: Spring Charge Mechanism Status -->
+                <g transform="translate(121, 6)">
+                  <rect width="112" height="44" rx="3" fill="#0d1117" stroke="#30363d" stroke-width="1.2"/>
+                  <text x="56" y="13" fill="#94a3b8" font-family="var(--font-sans)" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.5">SPRING MECHANISM</text>
+                  <rect x="6" y="17" width="100" height="22" rx="2" fill="#854d0e" stroke="#eab308"/>
+                  <text x="56" y="32" fill="#fef08a" font-family="var(--font-mono)" font-size="10.5" font-weight="800" text-anchor="middle">⚡ CHARGED</text>
+                  <rect width="112" height="44" rx="3" fill="url(#glassReflect)" pointer-events="none"/>
+                </g>
+
+                <!-- Window 3: Mechanical Operations Counter -->
+                <g transform="translate(241, 6)">
+                  <rect width="101" height="44" rx="3" fill="#0d1117" stroke="#30363d" stroke-width="1.2"/>
+                  <text x="50.5" y="13" fill="#94a3b8" font-family="var(--font-sans)" font-size="8.5" font-weight="700" text-anchor="middle" letter-spacing="0.5">CYCLE COUNT</text>
+                  <g transform="translate(18, 19)">
+                    <rect x="0" width="13" height="18" fill="#161b22" stroke="#30363d"/>
+                    <text x="6.5" y="13" fill="#f0f6fc" font-family="var(--font-mono)" font-size="10.5" text-anchor="middle">0</text>
+                    <rect x="13" width="13" height="18" fill="#161b22" stroke="#30363d"/>
+                    <text x="19.5" y="13" fill="#f0f6fc" font-family="var(--font-mono)" font-size="10.5" text-anchor="middle">0</text>
+                    <rect x="26" width="13" height="18" fill="#161b22" stroke="#30363d"/>
+                    <text x="32.5" y="13" fill="#f0f6fc" font-family="var(--font-mono)" font-size="10.5" text-anchor="middle">1</text>
+                    <rect x="39" width="13" height="18" fill="#161b22" stroke="#30363d"/>
+                    <text x="45.5" y="13" fill="#f0f6fc" font-family="var(--font-mono)" font-size="10.5" text-anchor="middle">4</text>
+                    <rect x="52" width="13" height="18" fill="#161b22" stroke="#30363d"/>
+                    <text x="58.5" y="13" fill="#f0f6fc" font-family="var(--font-mono)" font-size="10.5" text-anchor="middle">2</text>
+                  </g>
+                </g>
+              </svg>
+
+              <!-- Industrial Trip & Close Pushbuttons -->
+              <div style="display:flex;gap:6px;">
+                <button type="button" class="btn btn-sm btn-danger" style="flex:1;" onclick="pressCloseVCB('${cub.id}')">CLOSE [I]</button>
+                <button type="button" class="btn btn-sm btn-success" style="flex:1;" onclick="pressTripVCB('${cub.id}')">TRIP [O]</button>
+              </div>
+
+              ${cub.isHV ? `
+                <!-- 2.5D Visual of Withdrawable Truck Rails & Carriage -->
+                <svg viewBox="0 0 350 90" style="width:100%;height:90px;background:#13181e;border-radius:var(--r-sm);border:1px solid #2d3748;overflow:hidden;">
+                  <defs>
+                    <linearGradient id="spoutG" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stop-color="#78350f"/>
+                      <stop offset="50%" stop-color="#b45309"/>
+                      <stop offset="100%" stop-color="#d97706"/>
+                    </linearGradient>
+                    <linearGradient id="truckBodyG" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#475569"/>
+                      <stop offset="50%" stop-color="#334155"/>
+                      <stop offset="100%" stop-color="#1e293b"/>
+                    </linearGradient>
+                  </defs>
+
+                  <!-- Stationary Busbar Spouts on Left Wall -->
+                  <rect x="0" y="0" width="30" height="90" fill="#0f172a" stroke="#1e293b"/>
+                  <rect x="18" y="16" width="16" height="20" rx="2" fill="url(#spoutG)" stroke="#f59e0b" stroke-width="1.2"/>
+                  <rect x="18" y="52" width="16" height="20" rx="2" fill="url(#spoutG)" stroke="#f59e0b" stroke-width="1.2"/>
+                  <text x="3" y="48" fill="#94a3b8" font-family="var(--font-mono)" font-size="7.5" font-weight="700" transform="rotate(-90 8,46)" text-anchor="middle">SPOUTS</text>
+
+                  <!-- Floor Rails & Lead-screw -->
+                  <line x1="30" y1="78" x2="340" y2="78" stroke="#475569" stroke-width="2.5"/>
+                  <line x1="30" y1="44" x2="340" y2="44" stroke="#64748b" stroke-width="1.5" stroke-dasharray="3,2"/>
+
+                  <!-- Withdrawable VCB Truck (Animated X position) -->
+                  <g transform="translate(${truckX}, 10)">
+                    <!-- Contact Arms extending to the left -->
+                    <rect x="-12" y="8" width="14" height="10" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
+                    <rect x="-12" y="44" width="14" height="10" rx="2" fill="#cbd5e1" stroke="#94a3b8"/>
+
+                    <!-- Main Carriage Body -->
+                    <rect x="0" y="0" width="90" height="64" rx="3" fill="url(#truckBodyG)" stroke="#64748b" stroke-width="1.2"/>
+                    <text x="50" y="18" fill="#f8fafc" font-family="var(--font-sans)" font-size="9" font-weight="800">VCB TRUCK</text>
+                    <rect x="42" y="24" width="42" height="15" rx="2" fill="#0f172a" stroke="#334155"/>
+                    <text x="63" y="35" fill="${cub.vcbClosed ? '#f87171' : '#4ade80'}" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle">
+                      ${cub.vcbClosed ? '[I] CLOSED' : '[O] OPEN'}
+                    </text>
+
+                    <!-- Wheels -->
+                    <circle cx="14" cy="66" r="4.5" fill="#0f172a" stroke="#cbd5e1" stroke-width="1.2"/>
+                    <circle cx="76" cy="66" r="4.5" fill="#0f172a" stroke="#cbd5e1" stroke-width="1.2"/>
+                  </g>
+
+                  <!-- Status Label -->
+                  <rect x="185" y="4" width="158" height="18" rx="2" fill="#0f172a" stroke="#334155" fill-opacity="0.9"/>
+                  <text x="264" y="16" fill="#f1f5f9" font-family="var(--font-mono)" font-size="9.5" font-weight="700" text-anchor="middle">
+                    ${cub.rackingTurns === 20 ? 'SERVICE (20/20 turns)' : cub.rackingTurns === 10 ? 'TEST (10/20 turns)' : 'DISCONNECTED (0/20)'}
+                  </text>
+                  ${cub.rackingTurns === 0 ? `
+                    <rect x="40" y="32" width="150" height="18" rx="2" fill="#064e3b" stroke="#059669" fill-opacity="0.9"/>
+                    <text x="115" y="44" fill="#a7f3d0" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle">✓ PHYSICAL AIR-GAP SEPARATION</text>
+                  ` : ''}
+                </svg>
+
+                <!-- Racking Crank Controls -->
+                <div style="display:flex;gap:4px;">
+                  <button type="button" class="btn btn-sm" style="flex:1;" onclick="rackVCB('${cub.id}', -10)">-10 Turns (Rack Out)</button>
+                  <button type="button" class="btn btn-sm" style="flex:1;" onclick="rackVCB('${cub.id}', 10)">+10 Turns (Rack In)</button>
+                </div>
+
+                <!-- Racking Port Shutter & Padlock -->
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;background:var(--surface);padding:6px;border:1px solid var(--line);border-radius:var(--r);">
+                  <span>Racking Port: <strong>${cub.rackingPadlocked ? '🔒 Padlocked Closed' : '🔓 Unlocked (Flap Open)'}</strong></span>
+                  <button type="button" class="btn btn-sm" onclick="toggleRackingPadlock('${cub.id}')">
+                    ${cub.rackingPadlocked ? 'Unlock' : 'Padlock'}
+                  </button>
+                </div>
+
+                <!-- Castell Interlock on VCB side -->
+                ${cub.castellKeyId ? `
+                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;background:var(--surface);padding:6px;border:1px solid var(--line);border-radius:var(--r);">
+                    <span>Castell Key <code>${cub.castellKeyId}</code>: <strong>${cub.castellLockedOut ? 'Extracted (In Hand)' : 'Trapped in VCB'}</strong></span>
+                    <button type="button" class="btn btn-sm ${cub.castellLockedOut ? 'btn-success' : ''}" onclick="toggleCastellVCBLock('${cub.id}')">
+                      ${cub.castellLockedOut ? 'Unlock VCB' : 'Lock &amp; Extract'}
+                    </button>
+                  </div>
+                ` : ''}
+              ` : `
+                <!-- Low Voltage ACB Controls -->
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;background:var(--surface);padding:6px;border:1px solid var(--line);border-radius:var(--r);">
+                  <span>ACB LOTO Padlock: <strong>${cub.rackingPadlocked ? '🔒 Padlocked' : 'Unlocked'}</strong></span>
+                  <button type="button" class="btn btn-sm" onclick="toggleRackingPadlock('${cub.id}')">
+                    ${cub.rackingPadlocked ? 'Unlock' : 'Padlock'}
+                  </button>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;background:var(--surface);padding:6px;border:1px solid var(--line);border-radius:var(--r);">
+                  <span>Castell Key <code>K-LV</code>: <strong>${cub.castellLockedOut ? 'Extracted (In Hand)' : 'Trapped in ACB'}</strong></span>
+                  <button type="button" class="btn btn-sm ${cub.castellLockedOut ? 'btn-success' : ''}" onclick="toggleCastellVCBLock('${cub.id}')">
+                    ${cub.castellLockedOut ? 'Unlock ACB' : 'Lock &amp; Extract'}
+                  </button>
+                </div>
+              `}
+            </div>
+
+            <!-- Right Sub-compartment: Integral Earth Switch & CVI -->
+            <div class="sub-compartment">
+              <div class="sub-compartment-header">
+                <span>Integral Earth Switch</span>
+                <span class="state-flag ${cub.earthSwitchClosed ? 'earth' : 'green'}">${cub.earthSwitchClosed ? 'EARTHED' : 'OPEN'}</span>
+              </div>
+
+              ${cub.isHV ? `
+                <!-- 2.5D Earth Switch Mechanical Mimic Graphic -->
+                <svg viewBox="0 0 340 85" style="width:100%;height:85px;background:#13181e;border-radius:var(--r-sm);border:1px solid #2d3748;overflow:hidden;">
+                  <defs>
+                    <linearGradient id="bladeGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stop-color="#b45309"/>
+                      <stop offset="50%" stop-color="#d97706"/>
+                      <stop offset="100%" stop-color="#f59e0b"/>
+                    </linearGradient>
+                    <linearGradient id="earthBusG" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#15803d"/>
+                      <stop offset="100%" stop-color="#14532d"/>
+                    </linearGradient>
+                  </defs>
+
+                  <!-- Phase Terminal Studs (L1, L2, L3) -->
+                  <g transform="translate(35, 8)">
+                    <rect x="0" y="0" width="28" height="14" rx="2" fill="#334155" stroke="#64748b"/>
+                    <text x="14" y="10" fill="#94a3b8" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle">L1</text>
+                    
+                    <rect x="70" y="0" width="28" height="14" rx="2" fill="#334155" stroke="#64748b"/>
+                    <text x="84" y="10" fill="#94a3b8" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle">L2</text>
+                    
+                    <rect x="140" y="0" width="28" height="14" rx="2" fill="#334155" stroke="#64748b"/>
+                    <text x="154" y="10" fill="#94a3b8" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle">L3</text>
+                  </g>
+
+                  <!-- Earth Switch High-Speed Snap Knife Blades -->
+                  ${cub.earthSwitchClosed ? `
+                    <!-- BLADES CLOSED (Connecting phases solidly to earth bar) -->
+                    <g transform="translate(35, 18)">
+                      <line x1="14" y1="0" x2="14" y2="46" stroke="url(#bladeGrad)" stroke-width="5" stroke-linecap="round"/>
+                      <line x1="84" y1="0" x2="84" y2="46" stroke="url(#bladeGrad)" stroke-width="5" stroke-linecap="round"/>
+                      <line x1="154" y1="0" x2="154" y2="46" stroke="url(#bladeGrad)" stroke-width="5" stroke-linecap="round"/>
+                      <rect x="4" y="22" width="160" height="5" rx="2" fill="#475569" stroke="#94a3b8"/>
+                    </g>
+                  ` : `
+                    <!-- BLADES OPEN (Rotated away from earth bar) -->
+                    <g transform="translate(35, 18)">
+                      <line x1="14" y1="0" x2="32" y2="28" stroke="url(#bladeGrad)" stroke-width="5" stroke-linecap="round"/>
+                      <line x1="84" y1="0" x2="102" y2="28" stroke="url(#bladeGrad)" stroke-width="5" stroke-linecap="round"/>
+                      <line x1="154" y1="0" x2="172" y2="28" stroke="url(#bladeGrad)" stroke-width="5" stroke-linecap="round"/>
+                      <line x1="22" y1="14" x2="162" y2="14" stroke="#475569" stroke-width="4" stroke-linecap="round"/>
+                    </g>
+                  `}
+
+                  <!-- Hull Ground Bar -->
+                  <g transform="translate(25, 64)">
+                    <rect x="0" y="0" width="190" height="15" rx="2" fill="url(#earthBusG)" stroke="#22c55e" stroke-width="1.2"/>
+                    <text x="95" y="11" fill="#f0fdf4" font-family="var(--font-mono)" font-size="8.5" font-weight="700" text-anchor="middle">⏚ HULL SOLID EARTH BUSBAR</text>
+                  </g>
+
+                  <!-- Position Dial on Right -->
+                  <g transform="translate(240, 10)">
+                    <rect width="90" height="65" rx="3" fill="#0f172a" stroke="#334155" stroke-width="1.2"/>
+                    <text x="45" y="16" fill="#8b949e" font-family="var(--font-sans)" font-size="8.5" font-weight="700" text-anchor="middle">POSITION</text>
+                    ${cub.earthSwitchClosed ? `
+                      <rect x="8" y="24" width="74" height="28" rx="2" fill="#854d0e" stroke="#eab308"/>
+                      <text x="45" y="42" fill="#fef08a" font-family="var(--font-mono)" font-size="11" font-weight="800" text-anchor="middle">⏚ EARTHED</text>
+                    ` : `
+                      <rect x="8" y="24" width="74" height="28" rx="2" fill="#15803d" stroke="#22c55e"/>
+                      <text x="45" y="42" fill="#ffffff" font-family="var(--font-mono)" font-size="11" font-weight="800" text-anchor="middle">OPEN</text>
+                    `}
+                  </g>
+                </svg>
+
+                <!-- Earth Switch Operating Lever & Padlock Buttons -->
+                <div style="display:flex;gap:6px;">
+                  <button type="button" class="btn btn-sm ${cub.earthSwitchClosed ? 'btn-success' : 'btn-primary'}" style="flex:1;" onclick="toggleIntegralEarthSwitch('${cub.id}')">
+                    ${cub.earthSwitchClosed ? 'OPEN Earth Switch' : 'CLOSE Earth Switch (⏚)'}
+                  </button>
+                  <button type="button" class="btn btn-sm" onclick="toggleEarthPadlock('${cub.id}')">
+                    ${cub.earthPadlocked ? 'Unlock' : 'Padlock'}
+                  </button>
+                </div>
+
+                <!-- Castell Earth Interlock Cylinder -->
+                ${cub.requiredEarthKeys && cub.requiredEarthKeys.length > 0 ? `
+                  <div style="display:flex;flex-direction:column;gap:4px;background:var(--surface);padding:6px;border-radius:var(--r);border:1px solid var(--line);">
+                    <div style="font-size:12px;font-weight:600;color:var(--text-2);display:flex;justify-content:space-between;align-items:center;">
+                      <span>Castell Earth Interlock:</span>
+                      <span class="small-badge" style="color:${cub.requiredEarthKeys.every(k => cub.earthKeysInserted.includes(k)) ? 'var(--ok)' : 'var(--warn)'};">
+                        ${cub.requiredEarthKeys.every(k => cub.earthKeysInserted.includes(k)) ? '✓ CYLINDER UNLOCKED' : '🔒 LOCKED'}
+                      </span>
+                    </div>
+                    ${cub.requiredEarthKeys.map(kId => {
+                      const isInserted = cub.earthKeysInserted.includes(kId);
+                      const inHand = SIM.keys[kId] === 'HAND';
+                      return `
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:2px 0;">
+                          <span>Key <code>${kId}</code></span>
+                          ${isInserted ? `
+                            <button type="button" class="btn btn-sm btn-success" onclick="toggleEarthSwitchKey('${cub.id}', '${kId}')">
+                              ✓ Inserted in Cylinder
+                            </button>
+                          ` : inHand ? `
+                            <button type="button" class="btn btn-sm btn-primary" onclick="toggleEarthSwitchKey('${cub.id}', '${kId}')">
+                              🔑 Insert Key (${kId})
+                            </button>
+                          ` : `
+                            <span style="font-size:12px;color:var(--text-3);font-style:italic;">Trapped in ${SIM.keys[kId] || 'VCB'}</span>
+                          `}
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                ` : ''}
+
+                <!-- Safety Key Box Quick Access -->
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;background:var(--surface);padding:6px;border:1px solid var(--line);border-radius:var(--r);">
+                  <span>Safety Key Box: <strong>${SIM.keyBoxLocked ? '🔒 Locked' : '🔓 Open'}</strong></span>
+                  <button type="button" class="btn btn-sm ${SIM.keyBoxLocked ? 'btn-success' : ''}" onclick="toggleSafetyKeyBox()">
+                    ${SIM.keyBoxLocked ? '🔒 Key Box Locked' : '🔓 Lock Key Box'}
+                  </button>
+                </div>
+
+                <!-- Capacitive Voltage Indicators (CVI) Block -->
+                <div style="background:#111827;border:1px solid #374151;border-radius:var(--r-sm);padding:6px 10px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <span style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.5px;">CVI VOLTAGE DETECTORS</span>
+                    <span style="font-size:11px;font-weight:800;color:${cviLive ? '#ef4444' : '#22c55e'};">
+                      ${cviLive ? '⚡ 6.6 kV LIVE' : '0.0 kV DEAD'}
+                    </span>
+                  </div>
+                  <div class="cvi-strip">
+                    <div style="display:flex;align-items:center;gap:6px;color:#f3f4f6;font-family:var(--font-mono);font-size:12px;">
+                      <span class="cvi-dot ${cviLive ? 'live' : ''}"></span> L1
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;color:#f3f4f6;font-family:var(--font-mono);font-size:12px;">
+                      <span class="cvi-dot ${cviLive ? 'live' : ''}"></span> L2
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;color:#f3f4f6;font-family:var(--font-mono);font-size:12px;">
+                      <span class="cvi-dot ${cviLive ? 'live' : ''}"></span> L3
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Enclosure Door Interlock & Open Action -->
+                <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid var(--line);">
+                  <div style="font-size:12.5px;">
+                    <span>Door Interlock:</span>
+                    <strong style="color:${cub.earthSwitchClosed ? 'var(--ok)' : 'var(--alarm)'};">
+                      ${cub.earthSwitchClosed ? 'UNBOLTED' : 'BOLTED (Interlocked)'}
+                    </strong>
+                  </div>
+                  <button type="button" class="btn btn-sm" onclick="switchCubicleLayer('INTERIOR')">
+                    Unbolt &amp; Open Door
+                  </button>
+                </div>
+              ` : `
+                <p style="font-size:13px;color:var(--text-2);margin:0;">
+                  440 V Low Voltage secondary switchboard. Isolating this breaker prevents lethal 440 V -> 6.6 kV step-up back-feed into Transformer TR1.
+                </p>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLotoSteps() {
+      const container = document.getElementById('lotoStepsList');
+      const steps = getLotoSteps();
+      const currentIdx = steps.findIndex(s => !s.done);
+
+      document.getElementById('lotoPtwCode').textContent = `PTW-HV-6600-0${SIM.missionId}A — Step ${Math.max(0, currentIdx)} of ${steps.length}`;
+
+      container.innerHTML = steps.map((s, idx) => {
+        const isCurrent = idx === currentIdx;
+        const cls = s.done ? 'completed-step' : (isCurrent ? 'active-step' : '');
+        return `
+          <div class="loto-step-card ${cls}">
+            <div class="step-header">
+              <div class="step-number-circle">${s.done ? '✓' : idx + 1}</div>
+              <span class="step-title-text">${s.title}</span>
+            </div>
+            <div class="step-desc">${s.desc}</div>
+            ${!s.done ? `
+              <div class="step-action-bar">
+                <button type="button" class="btn btn-sm btn-primary" onclick="(${s.actionFn.toString()})()">${s.actionText}</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderTutorialWalkthrough() {
+      const container = document.getElementById('tutorialStepsContainer');
+      if (!container) return;
+      const banner = document.getElementById('tutorialMissionIntroBanner');
+      const steps = getLotoSteps();
+      const currentIdx = steps.findIndex(s => !s.done);
+
+      const missionTitles = {
+        1: 'Mission 1: Bow Thruster 6.6 kV Motor Isolation & PTW',
+        2: 'Mission 2: Transformer Dual-End Isolation (The Back-Feed Trap)',
+        3: 'Mission 3: Sanction-for-Test & 5 kV Megger / PI Test',
+        4: 'Mission 4: De-Isolation & Safe Restoration to 6.6 kV Service'
+      };
+
+      const missionLookTips = {
+        1: [
+          'Look at Left Sidebar -> High Voltage PPE (COSWP Ch. 22) -> Click "Air-Test" then "Don"',
+          'Look at Center Stage -> Cubicle 3 (BT-M1) Faceplate -> Press TRIP [O] button',
+          'Look at Center Stage -> Racking Crank controls -> Click "-10 Turns" twice to reach 0/20 DISCONNECTED',
+          'Look at Center Stage -> Racking Port & Castell Key K1-BT -> Click "Padlock" and "Lock & Extract"',
+          'Look at Center Stage -> Insert K1-BT, click "CLOSE Earth Switch (⏚)", Padlock, & Lock Key Box',
+          'Look at Top Toolbar -> Switch to "Internal Compartment" -> Prove Dead & Padlock Red Shutter, then Issue PTW'
+        ],
+        2: [
+          'Look at Left Sidebar -> High Voltage PPE -> Don all safety gear with roll test',
+          'Look at Cubicle C5 (ACB-TR1-LV) -> Press TRIP ACB [O] and extract Key K-LV',
+          'Look at Cubicle C4 (TR1-HV) -> Press TRIP [O] and rack to 0/20 DISCONNECTED',
+          'Look at Cubicle C4 (TR1-HV) -> Dual-Key Earth Switch -> Insert K-HV & K-LV, then CLOSE Earth Switch',
+          'Look at Cubicle C4 Internal Compartment -> Prove dead, connect PE clamp FIRST, then L1, L2, L3',
+          'Look at Right Sidebar -> Issue Permit-to-Work for Transformer Maintenance'
+        ],
+        3: [
+          'Look at Left Sidebar -> High Voltage PPE -> Ensure full protective gear is donned',
+          'Look at Right Sidebar -> Click "Permit View" to cancel active PTW, then issue Sanction-for-Test (SFT)',
+          'Look at Center Stage -> Unlock padlock and click "OPEN Earth Switch" (cannot test an earthed winding)',
+          'Look at Left Sidebar -> 5 kV Megger Console -> Click "Connect Leads" then "Run 5kV Test"',
+          'Look at Left Sidebar -> Click "⚡ Discharge Stored Winding Charge to 0 V" (CRITICAL LIFE-SAFETY STEP)',
+          'Look at Center Stage -> Re-close Integral Earth Switch to safe earthed state, then cancel SFT'
+        ],
+        4: [
+          'Look at Left Sidebar -> High Voltage PPE -> Ensure protective gear is equipped',
+          'Look at Right Sidebar -> Click "Sign Off & Cancel PTW" to return the permit',
+          'Look at Center Stage Internal Compartment -> Remove CME: phases L1-L3 FIRST via Hot-Stick, PE LAST',
+          'Look at Center Stage Faceplate -> Close door, unlock Key Box, open Earth Switch, return K1-BT to VCB',
+          'Look at Center Stage -> Rack VCB to TEST (10/20) and perform Close [I] & Trip [O] local function test',
+          'Look at Center Stage -> Rack VCB fully into SERVICE (20/20) and switch control to REMOTE'
+        ]
+      };
+
+      if (banner) {
+        banner.innerHTML = `
+          <strong>${missionTitles[SIM.missionId] || 'High Voltage Switching Walkthrough'}</strong><br>
+          ${currentIdx === -1 ? '🎉 <strong style="color:var(--ok);">All steps completed! Mission objective achieved (100/100).</strong>' : `Current Objective: <strong>Step ${currentIdx + 1} of ${steps.length}</strong>. Follow the instructions below.`}
+        `;
+      }
+
+      container.innerHTML = steps.map((s, idx) => {
+        const isCurrent = idx === currentIdx;
+        const isDone = s.done;
+        const tips = missionLookTips[SIM.missionId] || [];
+        const lookTip = tips[idx] || 'Follow the highlighted control on screen.';
+
+        return `
+          <div class="guide-step-card ${isCurrent ? 'active' : ''} ${isDone ? 'done' : ''}">
+            <div class="guide-step-top">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="guide-badge ${isDone ? 'completed' : isCurrent ? 'current' : 'pending'}">
+                  ${isDone ? '✓ DONE' : isCurrent ? `STEP ${idx + 1}` : `${idx + 1}`}
+                </span>
+                <strong style="font-size:14px;color:var(--text);">${s.title}</strong>
+              </div>
+              ${!isDone && isCurrent ? `
+                <button type="button" class="btn btn-sm btn-primary" onclick="(${s.actionFn.toString()})()">
+                  ▶ Do This Step
+                </button>
+              ` : ''}
+            </div>
+            <div class="guide-step-explain">${s.desc}</div>
+            <div class="guide-look-box">
+              <span style="font-size:14px;">👀</span>
+              <span style="color:var(--text-2);"><strong>Where to look:</strong> ${lookTip}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* ==========================================================================
+       6. INITIALIZATION & EVENT LISTENERS
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      // Mission navigation
+      document.querySelectorAll('.scenario-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById('missionCountBadge').textContent = `0${btn.dataset.m} / 04`;
+          document.getElementById('bottomStatusScenario').innerHTML = `<strong>Mission 0${btn.dataset.m}:</strong> ${btn.querySelector('span:last-child').textContent}`;
+          initMission(btn.dataset.m);
+        });
+      });
+
+      // Cubicle navigation pills
+      document.querySelectorAll('#cubicleNavPills .cub-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          SIM.selectedCubicle = btn.dataset.c;
+          AudioEngine.playRatchet();
+          render();
+        });
+      });
+
+      // View mode segmented tabs
+      document.getElementById('tabViewFaceplate').addEventListener('click', () => {
+        SIM.viewMode = 'FACEPLATE';
+        render();
+      });
+      document.getElementById('tabViewInterior').addEventListener('click', () => {
+        switchCubicleLayer('INTERIOR');
+      });
+      document.getElementById('tabViewSLD').addEventListener('click', () => {
+        SIM.viewMode = 'SLD';
+        render();
+      });
+
+      // PPE triggers
+      document.getElementById('btnRollTest').addEventListener('click', () => {
+        SIM.ppe.glovesAirTested = true;
+        AudioEngine.playPiezo(false);
+        logEvent('Class 2 gloves pneumatic roll test PASSED.');
+        render();
+      });
+      document.getElementById('btnDonGloves').addEventListener('click', () => {
+        if (!SIM.ppe.glovesAirTested) {
+          triggerViolation(15, 'Donned Gloves Without Air-Test', 'Perform roll air-test first!');
+          return;
+        }
+        SIM.ppe.gloves = !SIM.ppe.gloves;
+        render();
+      });
+      document.getElementById('btnDonSuit').addEventListener('click', () => {
+        SIM.ppe.suit = !SIM.ppe.suit;
+        render();
+      });
+      document.getElementById('btnDonBoots').addEventListener('click', () => {
+        SIM.ppe.bootsMat = !SIM.ppe.bootsMat;
+        render();
+      });
+      document.getElementById('btnEquipAllPPE').addEventListener('click', () => {
+        SIM.ppe = { suit: true, glovesAirTested: true, gloves: true, bootsMat: true };
+        AudioEngine.playPiezo(false);
+        logEvent('All HV PPE equipped.');
+        render();
+      });
+
+      // Tool selection
+      document.querySelectorAll('#toolbeltGrid .tool-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          SIM.activeTool = btn.dataset.t;
+          AudioEngine.playRatchet();
+          render();
+        });
+      });
+
+      // Key box toggle
+      document.getElementById('btnToggleKeyBox').addEventListener('click', toggleSafetyKeyBox);
+
+      // Megger buttons
+      document.getElementById('btnConnectMeggerLeads').addEventListener('click', connectMegger);
+      document.getElementById('btnExecuteMeggerTest').addEventListener('click', runMegger);
+      document.getElementById('btnBleedMeggerCharge').addEventListener('click', dischargeMegger);
+
+      // Reset & top controls
+      document.getElementById('btnResetAll').addEventListener('click', () => initMission(SIM.missionId));
+      document.getElementById('btnResetPermit').addEventListener('click', () => initMission(SIM.missionId));
+
+      document.getElementById('btnToggleMode').addEventListener('click', (e) => {
+        SIM.mode = SIM.mode === 'TRAIN' ? 'EXAM' : 'TRAIN';
+        e.currentTarget.innerHTML = `Mode: <strong>${SIM.mode === 'TRAIN' ? 'TRAINING' : 'EXAM / CoC'}</strong>`;
+        render();
+      });
+
+      document.getElementById('btnToggleAudio').addEventListener('click', (e) => {
+        const on = AudioEngine.toggle();
+        e.currentTarget.textContent = on ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+      });
+
+      document.getElementById('btnOpenManual').addEventListener('click', () => {
+        document.getElementById('manualDialog').showModal();
+      });
+
+      document.getElementById('btnFullPtwView').addEventListener('click', () => {
+        const bdy = document.getElementById('ptwModalBody');
+        bdy.innerHTML = `
+          <div style="background:var(--surface-2);padding:10px;border-radius:var(--r);font-family:var(--font-mono);font-size:13px;">
+            <div>Permit Ref: <strong>PTW-HV-6600-0${SIM.missionId}A</strong></div>
+            <div>Apparatus: <strong>${SIM.selectedCubicle}</strong></div>
+            <div>Status: <strong>${SIM.ptw.active ? 'ACTIVE & AUTHORIZED' : 'DRAFT / PENDING'}</strong></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13.5px;">
+            <div>✓ 1. Disconnect completely from all sources of supply</div>
+            <div>✓ 2. Secured against re-connection via LOTO and Castell trapped keys</div>
+            <div>✓ 3. Verified dead at point of work via Prove–Test–Prove</div>
+            <div>✓ 4. Earthed and short-circuited via Integral Earth Switch &amp; CME</div>
+            <div>✓ 5. Red 6.6 kV live busbar shutters locked &amp; warning tags posted</div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px;">
+            ${!SIM.ptw.active ? `
+              <button class="btn btn-primary" onclick="issuePTW(); document.getElementById('ptwDialog').close();">Sign &amp; Issue PTW</button>
+            ` : `
+              <button class="btn btn-danger" onclick="cancelPTW(); document.getElementById('ptwDialog').close();">Cancel Active PTW</button>
+            `}
+          </div>
+        `;
+        document.getElementById('ptwDialog').showModal();
+      });
+
+      // Floating Tutorial Guide Controls (Draggable & Non-Modal)
+      const helpFloat = document.getElementById('helpFloat');
+      const dragHandle = document.getElementById('helpDragHandle');
+      let isDraggingHelp = false;
+      let dragStartX = 0, dragStartY = 0, initialLeft = 0, initialTop = 0;
+
+      if (dragHandle && helpFloat) {
+        dragHandle.addEventListener('pointerdown', (e) => {
+          if (e.target.closest('.help-ctrl-btn')) return;
+          isDraggingHelp = true;
+          dragHandle.setPointerCapture(e.pointerId);
+          const rect = helpFloat.getBoundingClientRect();
+          dragStartX = e.clientX;
+          dragStartY = e.clientY;
+          initialLeft = rect.left;
+          initialTop = rect.top;
+          e.preventDefault();
+        });
+
+        dragHandle.addEventListener('pointermove', (e) => {
+          if (!isDraggingHelp) return;
+          const dx = e.clientX - dragStartX;
+          const dy = e.clientY - dragStartY;
+          let newLeft = initialLeft + dx;
+          let newTop = initialTop + dy;
+          const maxLeft = window.innerWidth - helpFloat.offsetWidth - 10;
+          const maxTop = window.innerHeight - 50;
+          newLeft = Math.max(10, Math.min(newLeft, maxLeft));
+          newTop = Math.max(40, Math.min(newTop, maxTop));
+          helpFloat.style.left = newLeft + 'px';
+          helpFloat.style.top = newTop + 'px';
+          helpFloat.style.right = 'auto';
+        });
+
+        const endDrag = (e) => {
+          if (!isDraggingHelp) return;
+          isDraggingHelp = false;
+          try { dragHandle.releasePointerCapture(e.pointerId); } catch (_) {}
+        };
+        dragHandle.addEventListener('pointerup', endDrag);
+        dragHandle.addEventListener('pointercancel', endDrag);
+
+        const btnToggle = document.getElementById('btnToggleHelp');
+        if (btnToggle) {
+          btnToggle.addEventListener('click', () => {
+            helpFloat.classList.toggle('hidden');
+            if (!helpFloat.classList.contains('hidden')) {
+              helpFloat.classList.remove('minimized');
+            }
+          });
+        }
+
+        document.getElementById('helpCloseBtn').addEventListener('click', () => {
+          helpFloat.classList.add('hidden');
+        });
+
+        document.getElementById('helpMinimize').addEventListener('click', () => {
+          helpFloat.classList.toggle('minimized');
+        });
+
+        document.getElementById('helpExpand').addEventListener('click', () => {
+          helpFloat.classList.toggle('wide');
+        });
+
+        // Tutorial tab switching
+        document.querySelectorAll('.help-tab-btn').forEach(tab => {
+          tab.addEventListener('click', () => {
+            document.querySelectorAll('.help-tab-btn').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const target = tab.dataset.htab;
+            document.querySelectorAll('.htab-pane').forEach(p => p.style.display = 'none');
+            const pane = document.getElementById(`hpane-${target}`);
+            if (pane) pane.style.display = 'block';
+          });
+        });
+      }
+
+      // Start initial mission
+      initMission(1);
+    });
+  </script>
+</body>
+</html>
